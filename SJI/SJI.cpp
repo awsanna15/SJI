@@ -1,0 +1,529 @@
+﻿
+// SJI.cpp : Defines the class behaviors for the application.
+//
+
+#include "stdafx.h"
+#include "afxwinappex.h"
+#include "afxdialogex.h"
+#include "SJI.h"
+#include "MainFrm.h"
+
+#include "ChildFrm.h"
+#include "SJIDoc.h"
+#include "SJIView.h"
+
+#include "ippiImage.h"
+#include "IppiWrapperAlias.h"
+#include "MyUtilities.h"
+
+#include <opencv2/opencv.hpp>
+#include "opencv2/dnn.hpp"
+#include <vector>
+#include <iostream>
+#include <numeric>
+#include <cmath>
+#include <unordered_map>
+#include "math.h"
+#include "Segmenter.h"
+
+using namespace cv;
+using namespace std;
+
+#ifdef _DEBUG
+#define new DEBUG_NEW
+#endif
+
+
+// CSJIApp
+
+BEGIN_MESSAGE_MAP(CSJIApp, CWinAppEx)
+	ON_COMMAND(ID_APP_ABOUT, &CSJIApp::OnAppAbout)
+	// Standard file based document commands
+	ON_COMMAND(ID_FILE_NEW, &CWinAppEx::OnFileNew)
+	ON_COMMAND(ID_FILE_OPEN, &CWinAppEx::OnFileOpen)
+	// Standard print setup command
+	ON_COMMAND(ID_FILE_PRINT_SETUP, &CWinAppEx::OnFilePrintSetup)
+	ON_COMMAND(ID_SEGMENTATION_EDGEBASEDSEGMENT, &CSJIApp::OnSegmentationEdgebasedsegment)
+	ON_COMMAND(ID_SEGMENTATION_IMAGEREGISTRATION, &CSJIApp::OnSegmentationImageregistration)
+	ON_COMMAND(ID_SEGMENTATION_SIMPLEBUMPCV, &CSJIApp::OnSegmentationSimplebumpcv)
+	ON_COMMAND(ID_TESTFUNCTIONS_ADAPTIVETHREASHOLD, &CSJIApp::OnTestfunctionsAdaptivethreashold)
+	ON_COMMAND(ID_INFERENCING_RUNINFERENCE, &CSJIApp::OnInferencingRuninference)
+END_MESSAGE_MAP()
+
+
+// CSJIApp construction
+
+CSJIApp::CSJIApp()
+{
+	m_bHiColorIcons = TRUE;
+
+	// support Restart Manager
+	m_dwRestartManagerSupportFlags = AFX_RESTART_MANAGER_SUPPORT_ALL_ASPECTS;
+#ifdef _MANAGED
+	// If the application is built using Common Language Runtime support (/clr):
+	//     1) This additional setting is needed for Restart Manager support to work properly.
+	//     2) In your project, you must add a reference to System.Windows.Forms in order to build.
+	System::Windows::Forms::Application::SetUnhandledExceptionMode(System::Windows::Forms::UnhandledExceptionMode::ThrowException);
+#endif
+
+	// TODO: replace application ID string below with unique ID string; recommended
+	// format for string is CompanyName.ProductName.SubProduct.VersionInformation
+	SetAppID(_T("SJI.AppID.NoVersion"));
+
+	// TODO: add construction code here,
+	// Place all significant initialization in InitInstance
+}
+
+// The one and only CSJIApp object
+
+CSJIApp theApp;
+
+
+// CSJIApp initialization
+
+BOOL CSJIApp::InitInstance()
+{
+	// InitCommonControlsEx() is required on Windows XP if an application
+	// manifest specifies use of ComCtl32.dll version 6 or later to enable
+	// visual styles.  Otherwise, any window creation will fail.
+	INITCOMMONCONTROLSEX InitCtrls;
+	InitCtrls.dwSize = sizeof(InitCtrls);
+	// Set this to include all the common control classes you want to use
+	// in your application.
+	InitCtrls.dwICC = ICC_WIN95_CLASSES;
+	InitCommonControlsEx(&InitCtrls);
+
+	CWinAppEx::InitInstance();
+
+
+	// Initialize OLE libraries
+	if (!AfxOleInit())
+	{
+		AfxMessageBox(IDP_OLE_INIT_FAILED);
+		return FALSE;
+	}
+
+	AfxEnableControlContainer();
+
+	EnableTaskbarInteraction();
+
+	// AfxInitRichEdit2() is required to use RichEdit control	
+	// AfxInitRichEdit2();
+
+	// Standard initialization
+	// If you are not using these features and wish to reduce the size
+	// of your final executable, you should remove from the following
+	// the specific initialization routines you do not need
+	// Change the registry key under which our settings are stored
+	// TODO: You should modify this string to be something appropriate
+	// such as the name of your company or organization
+	SetRegistryKey(_T("Local AppWizard-Generated Applications"));
+	LoadStdProfileSettings(4);  // Load standard INI file options (including MRU)
+
+
+	InitContextMenuManager();
+
+	InitKeyboardManager();
+
+	InitTooltipManager();
+	CMFCToolTipInfo ttParams;
+	ttParams.m_bVislManagerTheme = TRUE;
+	theApp.GetTooltipManager()->SetTooltipParams(AFX_TOOLTIP_TYPE_ALL,
+		RUNTIME_CLASS(CMFCToolTipCtrl), &ttParams);
+
+	// Register the application's document templates.  Document templates
+	//  serve as the connection between documents, frame windows and views
+	CMultiDocTemplate* pDocTemplate;
+	pDocTemplate = new CMultiDocTemplate(IDR_SJITYPE,
+		RUNTIME_CLASS(CSJIDoc),
+		RUNTIME_CLASS(CChildFrame), // custom MDI child frame
+		RUNTIME_CLASS(CSJIView));
+	if (!pDocTemplate)
+		return FALSE;
+	AddDocTemplate(pDocTemplate);
+
+	// create main MDI Frame window
+	CMainFrame* pMainFrame = new CMainFrame;
+	if (!pMainFrame || !pMainFrame->LoadFrame(IDR_MAINFRAME))
+	{
+		delete pMainFrame;
+		return FALSE;
+	}
+	m_pMainWnd = pMainFrame;
+
+
+	// Parse command line for standard shell commands, DDE, file open
+	CCommandLineInfo cmdInfo;
+	ParseCommandLine(cmdInfo);
+
+
+
+	// Dispatch commands specified on the command line.  Will return FALSE if
+	// app was launched with /RegServer, /Register, /Unregserver or /Unregister.
+	//if (!ProcessShellCommand(cmdInfo))
+	//	return FALSE;
+	// The main window has been initialized, so show and update it
+	pMainFrame->ShowWindow(m_nCmdShow);
+	pMainFrame->UpdateWindow();
+
+	return TRUE;
+}
+
+int CSJIApp::ExitInstance()
+{
+	//TODO: handle additional resources you may have added
+	AfxOleTerm(FALSE);
+
+	return CWinAppEx::ExitInstance();
+}
+
+// CSJIApp message handlers
+
+
+// CAboutDlg dialog used for App About
+
+class CAboutDlg : public CDialogEx
+{
+public:
+	CAboutDlg();
+
+// Dialog Data
+#ifdef AFX_DESIGN_TIME
+	enum { IDD = IDD_ABOUTBOX };
+#endif
+
+protected:
+	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV support
+
+// Implementation
+protected:
+	DECLARE_MESSAGE_MAP()
+};
+
+CAboutDlg::CAboutDlg() : CDialogEx(IDD_ABOUTBOX)
+{
+}
+
+void CAboutDlg::DoDataExchange(CDataExchange* pDX)
+{
+	CDialogEx::DoDataExchange(pDX);
+}
+
+BEGIN_MESSAGE_MAP(CAboutDlg, CDialogEx)
+END_MESSAGE_MAP()
+
+// App command to run the dialog
+void CSJIApp::OnAppAbout()
+{
+	CAboutDlg aboutDlg;
+	aboutDlg.DoModal();
+}
+
+// CSJIApp customization load/save methods
+
+void CSJIApp::PreLoadState()
+{
+	BOOL bNameValid;
+	CString strName;
+	bNameValid = strName.LoadString(IDS_EDIT_MENU);
+	ASSERT(bNameValid);
+	GetContextMenuManager()->AddMenu(strName, IDR_POPUP_EDIT);
+	bNameValid = strName.LoadString(IDS_EXPLORER);
+	ASSERT(bNameValid);
+	GetContextMenuManager()->AddMenu(strName, IDR_POPUP_EXPLORER);
+}
+
+void CSJIApp::LoadCustomState()
+{
+}
+
+void CSJIApp::SaveCustomState()
+{
+}
+
+// CSJIApp message handlers
+
+void CSJIApp::PresentResult(CIppiImage *pResult)
+{
+	CSJIView* pView = (CSJIView*)theApp.OpenPages.GetViewAt(0); // get first one
+	pView->PresentResult(pResult);
+}
+
+void CSJIApp::PresentResult(CSJIDoc *pDoc)
+{
+	POSITION posView = pDoc->GetFirstViewPosition();
+	CSJIView* pView = (CSJIView*)pDoc->GetNextView(posView); // get first one
+
+	pView->PresentResult(pDoc->m_ImagePtr);
+}
+
+
+
+void CSJIApp::OnSegmentationEdgebasedsegment()
+{
+	int col = 1; //green
+	if (OpenPages.GetCount() >= 1)
+	{
+		
+		for (int i = 0; i < OpenPages.GetCount(); i++)
+		{
+			CSJIDoc* pDoc1 = OpenPages.GetDocAt(i);
+			CIppiImage* pImage1 = pDoc1->m_ImagePtr;
+
+			CSegmenter Segmenter(pImage1,EdgeBased);
+			std::vector<cv::Point> circleCenters = Segmenter.GetBumpLocations();
+			//draw  markers
+			
+			pDoc1->m_RectArray.RemoveAll();
+			pDoc1->m_RectCol.RemoveAll();
+			for (int i = 0; i < circleCenters.size(); i++)
+			{
+				cv::Point cp = circleCenters[i];
+				CRect rect = CRect(cp.x - 1, cp.y - 1, cp.x + 2, cp.y + 2);
+				pDoc1->m_RectArray.Add(rect);
+				pDoc1->m_RectCol.Add(col);
+			}
+			PresentResult(pDoc1);
+
+
+		}
+
+		
+
+	}
+}
+
+void CSJIApp::OnSegmentationImageregistration()
+{
+	int col = 1; //green
+	if (OpenPages.GetCount() >= 1)
+	{
+
+		for (int i = 0; i < OpenPages.GetCount(); i++)
+		{
+			CSJIDoc* pDoc1 = OpenPages.GetDocAt(i);
+			CIppiImage* pImage1 = pDoc1->m_ImagePtr;
+
+			CSegmenter Segmenter(pImage1, ImageRegistration);
+			std::vector<cv::Point> circleCenters = Segmenter.GetBumpLocations();
+			//draw  markers
+
+			pDoc1->m_RectArray.RemoveAll();
+			pDoc1->m_RectCol.RemoveAll();
+			for (int i = 0; i < circleCenters.size(); i++)
+			{
+				cv::Point cp = circleCenters[i];
+				CRect rect = CRect(cp.x - 1, cp.y - 1, cp.x + 2, cp.y + 2);
+				pDoc1->m_RectArray.Add(rect);
+				pDoc1->m_RectCol.Add(col);
+			}
+			PresentResult(pDoc1);
+
+
+		}
+
+
+
+	}
+
+}
+
+
+void CSJIApp::OnSegmentationSimplebumpcv()
+{
+	int col = 1; //green
+	if (OpenPages.GetCount() >= 1)
+	{
+
+		for (int i = 0; i < OpenPages.GetCount(); i++)
+		{
+			CSJIDoc* pDoc1 = OpenPages.GetDocAt(i);
+			CIppiImage* pImage1 = pDoc1->m_ImagePtr;
+
+			CSegmenter Segmenter(pImage1, SimpleBumpCV);
+			std::vector<cv::Point> circleCenters = Segmenter.GetBumpLocations();
+			//draw  markers
+
+			pDoc1->m_RectArray.RemoveAll();
+			pDoc1->m_RectCol.RemoveAll();
+			for (int i = 0; i < circleCenters.size(); i++)
+			{
+				cv::Point cp = circleCenters[i];
+				CRect rect = CRect(cp.x - 1, cp.y - 1, cp.x + 2, cp.y + 2);
+				pDoc1->m_RectArray.Add(rect);
+				pDoc1->m_RectCol.Add(col);
+			}
+			PresentResult(pDoc1);
+
+
+		}
+
+
+
+	}
+}
+
+
+void CSJIApp::OnTestfunctionsAdaptivethreashold()
+{
+	int BumpSizeInPixels = 8;
+	if (OpenPages.GetCount() >= 1)
+	{
+
+		CSJIDoc* pDoc1 = OpenPages.GetDocAt(0);
+		CIppiImage* pImage1 = pDoc1->m_ImagePtr;
+
+		CIppiImage Image8u(pImage1->Width(), pImage1->Height(), 1, pp8u);
+
+		SmartConversionto8bit(*pImage1, Image8u);
+
+		cv::Mat gray = cv::Mat(Image8u.Height(), Image8u.Width(), CV_8UC1, Image8u.DataPtr(), Image8u.Step());
+
+		Mat image_copy = gray.clone();
+		// Apply Gaussian Blur to reduce noise
+
+		cv::Mat blurred;
+		cv::medianBlur(gray, blurred, (BumpSizeInPixels/2)*2-1);
+		//cv::imshow("Blurred Image", blurred);
+		//cv::waitKey(0);
+
+		// Apply adaptive thresholding to extract dark areas (solder joints)
+		cv::Mat thresh;
+		cv::adaptiveThreshold(blurred, thresh, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY_INV, (BumpSizeInPixels)*2+1, 2);
+
+		cv::Mat morph;
+		cv::morphologyEx(thresh, morph, cv::MORPH_DILATE, cv::Mat::ones(3, 3, CV_8UC1));
+
+
+		ippiCopy_8u_C1R((const Ipp8u*)morph.data, (int)morph.step, (Ipp8u*)Image8u.DataPtr(), Image8u.Step(), Image8u.Size());
+		CIppiImage* pResult = new CIppiImage(pImage1->Width(), pImage1->Height(), 1, pp16s);
+		ippiConvert_8u16s_C1R((const Ipp8u*)Image8u.DataPtr(), Image8u.Step(), (Ipp16s*)pResult->DataPtr(), pResult->Step(), pResult->Size());
+		CWinApp::OnFileNew();
+		PresentResult(pResult);
+Image8u.SaveImage(_T("C:\\Temp\\Image8u.bmp"));
+	}
+}
+
+
+void CSJIApp::OnInferencingRuninference()
+{
+	if (OpenPages.GetCount() >= 1)
+	{
+		std::vector<CBridgeResult> bridgeResults;
+
+		for (int i = 0; i < OpenPages.GetCount(); i++)
+		{
+			CSJIDoc* pDoc1 = OpenPages.GetDocAt(i);
+			CIppiImage* pImage1 = pDoc1->m_ImagePtr;
+
+			CSegmenter Segmenter(pImage1, SimpleBumpCV);
+			std::vector<CCandidateBridge> candidateList = Segmenter.GetBridgeCandidates();
+			
+
+
+
+			// do inference on each end every candidate ************************************************************
+			//Use onnx model to classify images
+				// Load the ONNX model
+			std::string modelPath = "model.onnx";  // Change this to your ONNX model path
+			cv::dnn::Net net = cv::dnn::readNetFromONNX(modelPath);
+			if (net.empty()) 
+			{
+				std::cerr << "Error: Could not load the ONNX model!" << std::endl;
+				return ;
+			}
+
+			for (int c = 0; c < candidateList.size(); c++)
+			{
+				CIppiImage* pSegment = candidateList[c].pBridgeImg;
+				cv::Mat finalCropped = cv::Mat(pSegment->Height(), pSegment->Width(), CV_8UC1, pSegment->DataPtr(), pSegment->Step());
+				finalCropped.convertTo(finalCropped, CV_8U);
+
+				cv::Mat equalizedImg;
+				cv::equalizeHist(finalCropped, equalizedImg);  // Apply histogram equalisation
+
+				int width = equalizedImg.cols;
+				int height = equalizedImg.rows;
+
+				int new_width, new_height;
+				if (width > height) {
+					new_width = 224;
+					new_height = static_cast<int>(height * (224.0 / width));
+				}
+				else {
+					new_height = 224;
+					new_width = static_cast<int>(width * (224.0 / height));
+				}
+
+				// Resize the image while keeping the aspect ratio
+				cv::Mat resizedImg;
+				cv::resize(equalizedImg, resizedImg, cv::Size(new_width, new_height), 0, 0, cv::INTER_LINEAR);
+
+				// Create a 224x224 white image
+				cv::Mat finalImg(224, 224, resizedImg.type(), cv::Scalar(255, 255, 255));
+
+				// Compute the position to center the resized image
+				int x_offset = (224 - new_width) / 2;
+				int y_offset = (224 - new_height) / 2;
+
+				// Place resized image in the center of the white background
+				resizedImg.copyTo(finalImg(cv::Rect(x_offset, y_offset, new_width, new_height)));
+
+				cv::Mat blob;
+				cv::dnn::blobFromImage(finalImg, blob, 1.0 / 255.0, cv::Size(224, 224), cv::Scalar(0, 0, 0), true, false);
+
+				// Set the blob as the input to the network
+				net.setInput(blob);
+
+				// Run forward pass to classify the image
+				cv::Mat output = net.forward();
+
+				// Interpret output: Find the index of the highest confidence score
+				cv::Point classIdPoint;
+				double confidence;
+				cv::minMaxLoc(output, nullptr, &confidence, nullptr, &classIdPoint);
+				int classId = classIdPoint.x;
+
+				//store inference results in result array
+				float fbridge = classId==1 ? (float)confidence : 1.0f- (float)confidence;
+				float fnotbridge = 1.0f - fbridge;
+				bridgeResults.push_back(CBridgeResult(candidateList[c], fbridge, confidence));
+			}
+
+			// store image segments to the dedicated result folders (bridge, notbridge) ****************************************
+			for (int i = 0; i < bridgeResults.size(); i++)
+			{
+				if (bridgeResults[i].m_bIsTrueBridge)
+				{
+				// save iamge to bridge folder 
+				//	candidateList[i].pBridgeImg->SaveImage(_T(""));
+				}
+				else
+				{
+					// save iamge to notbridge folder 
+				//	candidateList[i].pBridgeImg->SaveImage(_T(""));
+				}
+			}
+			
+			
+		// ***** present the results ************************
+
+			pDoc1->m_RectArray.RemoveAll();
+			pDoc1->m_RectCol.RemoveAll();
+			for (int i = 0; i < bridgeResults.size(); i++)
+			{
+				if (bridgeResults[i].m_bIsTrueBridge)
+				{
+					pDoc1->m_RectArray.Add(bridgeResults[i].boundingRect);
+					pDoc1->m_RectCol.Add(2); //red
+				}
+			}
+			PresentResult(pDoc1);
+
+
+		}
+
+
+
+	}
+}
