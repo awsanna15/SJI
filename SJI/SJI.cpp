@@ -396,7 +396,7 @@ Image8u.SaveImage(_T("C:\\Temp\\Image8u.bmp"));
 void CSJIApp::OnInferencingRuninference()
 {
 
-	int BumpSizeInPixels = 8;
+	int BumpSizeInPixels = 14;
 	if (OpenPages.GetCount() >= 1)
 	{
 		std::vector<CBridgeResult> bridgeResults;

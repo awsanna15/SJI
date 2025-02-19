@@ -369,56 +369,59 @@ void CSegmenter::SuspectsOnly()
 				}
 				else
 				{
-					CCandidateBridge cb;
-					int objID1 = static_cast<int>(ot_first.objID);
-					cb.listBumpIDs.push_back(objID1);
-					cb.listBumpPixPos.push_back(ot_first.centre);
-					cb.listBumpIDs.push_back(objID);
-					cb.listBumpPixPos.push_back(ot_now.centre);
+					if (_hypot(ot_first.centre.x - ot_now.centre.x, ot_first.centre.y - ot_now.centre.y) > m_BumpSizeInPixels) // if too close, ignore
+					{
+						CCandidateBridge cb;
+						int objID1 = static_cast<int>(ot_first.objID);
+						cb.listBumpIDs.push_back(objID1);
+						cb.listBumpPixPos.push_back(ot_first.centre);
+						cb.listBumpIDs.push_back(objID);
+						cb.listBumpPixPos.push_back(ot_now.centre);
 
-					seed.x = x;
-					seed.y = y;
-					ippiFloodFill_8Con_8u_C1IR((Ipp8u*)pFeatureImage->DataPtr(), pFeatureImage->Step(), pFeatureImage->Size(), seed, lpi, &con, pbuf);
+						seed.x = x;
+						seed.y = y;
+						ippiFloodFill_8Con_8u_C1IR((Ipp8u*)pFeatureImage->DataPtr(), pFeatureImage->Step(), pFeatureImage->Size(), seed, lpi, &con, pbuf);
 
 
-					cb.boundingRect = CRect(con.rect.x, con.rect.y, con.rect.x+ con.rect.width, con.rect.y+ con.rect.height);
-					cb.sizex = cb.boundingRect.Width();
-					cb.sizey = cb.boundingRect.Height();
-					cb.xreal=
-					cb.lp1 = lpi;
-					cb.xpix = cb.boundingRect.CenterPoint().x;
-					cb.ypix = cb.boundingRect.CenterPoint().y;
-					pair<float, float> b = GetRealPosition(cb.boundingRect, pFeatureImage, lpi);
-					cb.xreal = b.first;
-					cb.yreal = b.second;
+						cb.boundingRect = CRect(con.rect.x, con.rect.y, con.rect.x + con.rect.width, con.rect.y + con.rect.height);
+						cb.sizex = cb.boundingRect.Width();
+						cb.sizey = cb.boundingRect.Height();
+						cb.lp1 = lpi;
+						cb.xpix = cb.boundingRect.CenterPoint().x;
+						cb.ypix = cb.boundingRect.CenterPoint().y;
+						pair<float, float> b = GetRealPosition(cb.boundingRect, pFeatureImage, lpi);
+						cb.xreal = b.first;
+						cb.yreal = b.second;
+
+
+						//check if has already been included ***************
+						BOOL bFound = FALSE;
+						for (int i = 0; i < m_BridgeCandidates.size() && !bFound; i++)
+						{
+							CCandidateBridge candidate = m_BridgeCandidates[i];
+
+							if (candidate.lp1 == lpi)
+							{
+								bFound = TRUE;
+								m_BridgeCandidates[i].listBumpIDs.push_back(objID);
+								m_BridgeCandidates[i].listBumpPixPos.push_back(ot_now.centre);
+							}
+						}
+						if (!bFound)
+						{
+
+							float dx = static_cast<float>(ot_now.floodfillpos.x - ot_first.floodfillpos.x);
+							float dy = static_cast<float>(ot_now.floodfillpos.y - ot_first.floodfillpos.y);
+							if (_hypot(dx, dy) > m_BumpSizeInPixels)
+							{
+								cb.BridgeID = m_BridgeCandidates.size() + 1;
+								m_BridgeCandidates.push_back(cb);
+							}
+						}
+						//**************************************************
+						//******************************************
+					}
 					
-
-					//check if has already been included ***************
-					BOOL bFound = FALSE;
-					for (int i = 0; i < m_BridgeCandidates.size() && !bFound; i++)
-					{
-						CCandidateBridge candidate = m_BridgeCandidates[i];
-						
-						if (candidate.lp1 == lpi)
-						{
-							bFound = TRUE;
-							m_BridgeCandidates[i].listBumpIDs.push_back(objID);
-							m_BridgeCandidates[i].listBumpPixPos.push_back(ot_now.centre);
-						}
-					}
-					if (!bFound)
-					{
-
-						float dx = static_cast<float>(ot_now.floodfillpos.x - ot_first.floodfillpos.x);
-						float dy = static_cast<float>(ot_now.floodfillpos.y - ot_first.floodfillpos.y);
-						if (_hypot(dx, dy) > m_BumpSizeInPixels)
-						{
-							cb.BridgeID = m_BridgeCandidates.size() + 1;
-							m_BridgeCandidates.push_back(cb);
-						}
-					}
-					//**************************************************
-					//******************************************
 					
 				}
 			}
