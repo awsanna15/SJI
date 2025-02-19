@@ -11,10 +11,9 @@
 
 
 #include "SJIDoc.h"
-
+#include <memory> // Add this include directive at the top of the file
 #include <propkey.h>
 #include <cstring>
-#include <memory>
 #include "ippiImage.h"
 
 
@@ -80,7 +79,136 @@ void CSJIDoc::Serialize(CArchive& ar)
 	}
 	else
 	{
-		if (ar.m_strFileName.Right(3).MakeLower().Compare(_T("raw")) == 0 )
+		if (ar.m_strFileName.Right(3).MakeLower().Compare(_T("jpg")) == 0)
+		{
+			CString FileName = _T("");
+			for (int i = 0; i < ar.m_strFileName.GetLength(); i++)
+			{
+				FileName.Append(ar.m_strFileName.Mid(i, 1));
+				if (ar.m_strFileName.Mid(i, 1).Compare(_T("\\")) == 0)
+				{
+					FileName.Append(_T("\\"));
+				}
+			}
+
+			
+
+			std::unique_ptr<CIppiImage> pSrcImageEx_tmp = std::make_unique<CIppiImage>();
+			std::unique_ptr<CIppiImage> pSrcImageEx_16s = std::make_unique<CIppiImage>();
+
+			pSrcImageEx_tmp.get()->LoadImage(FileName);
+			if (pSrcImageEx_tmp.get() != nullptr && pSrcImageEx_tmp.get()->IsValid())
+				pSrcImageEx_16s.get()->CreateImage(pSrcImageEx_tmp.get()->Width(), pSrcImageEx_tmp.get()->Height(), 1, pp16s);
+			else
+				return;
+
+			ippiConvert_8u16s_C1R((const Ipp8u*)pSrcImageEx_tmp.get()->DataPtr(), pSrcImageEx_tmp.get()->Step(),
+				(Ipp16s*)pSrcImageEx_16s.get()->DataPtr(), pSrcImageEx_16s.get()->Step(), pSrcImageEx_16s.get()->Size());
+
+			int Width = pSrcImageEx_16s.get()->Width();
+			int Height = pSrcImageEx_16s.get()->Height();
+			int BitDepth = 16;
+			m_BitDepth = BitDepth;
+			m_ImagePtr = new CIppiImage(*(pSrcImageEx_16s.get()));
+
+			if (ar.m_strFileName.Right(3).MakeLower().Compare(_T("jpg")) != 0)
+			{
+				ippiMirror_16u_C1IR((Ipp16u*)m_ImagePtr->DataPtr(), m_ImagePtr->Step(), m_ImagePtr->Size(), ippAxsHorizontal);
+			}
+			
+		}
+		else if (ar.m_strFileName.Right(3).MakeLower().Compare(_T("bmp")) == 0)
+		{
+			CString FileName = _T("");
+			for (int i = 0; i < ar.m_strFileName.GetLength(); i++)
+			{
+				FileName.Append(ar.m_strFileName.Mid(i, 1));
+				if (ar.m_strFileName.Mid(i, 1).Compare(_T("\\")) == 0)
+				{
+					FileName.Append(_T("\\"));
+				}
+			}
+
+			std::unique_ptr<CIppiImage> pSrcImageEx_tmp = std::make_unique<CIppiImage>();
+			std::unique_ptr<CIppiImage> pSrcImageEx_16s = std::make_unique<CIppiImage>();
+
+			CFile* pFile = ar.GetFile();
+			int nCount, nSize;
+			BITMAPFILEHEADER bmfh;
+			LPBITMAPINFOHEADER m_lpBMIH;
+
+			Ipp8u* p8uDataPtr;
+			BYTE* pBuffer;
+			Ipp16s* p16sDataPtr;
+			WORD* pBuffer2;
+
+			nCount = pFile->Read((LPVOID)&bmfh, sizeof(BITMAPFILEHEADER));
+			nSize = bmfh.bfOffBits - sizeof(BITMAPFILEHEADER);
+			m_lpBMIH = (LPBITMAPINFOHEADER) new char[nSize];
+			nCount = pFile->Read(m_lpBMIH, nSize); // info hdr & color table
+
+
+			pSrcImageEx_16s.get()->CreateImage(m_lpBMIH->biWidth, m_lpBMIH->biHeight, 1, pp16s);
+			switch (m_lpBMIH->biBitCount)
+			{
+			case 8:
+				pSrcImageEx_tmp.get()->CreateImage(m_lpBMIH->biWidth, m_lpBMIH->biHeight, 1, pp8u);
+				pBuffer = (BYTE*) new BYTE[m_lpBMIH->biSizeImage];
+				pFile->Read(pBuffer, m_lpBMIH->biSizeImage);
+				p8uDataPtr = (Ipp8u*)pSrcImageEx_tmp.get()->DataPtr();
+				memcpy(p8uDataPtr, pBuffer, m_lpBMIH->biSizeImage);
+				delete pBuffer;
+				ippiConvert_8u16s_C1R((const Ipp8u*)pSrcImageEx_tmp.get()->DataPtr(), pSrcImageEx_tmp.get()->Step(),
+					(Ipp16s*)pSrcImageEx_16s.get()->DataPtr(), pSrcImageEx_16s.get()->Step(), pSrcImageEx_16s.get()->Size());
+				break;
+			case 16:
+				pBuffer2 = (WORD*) new WORD[m_lpBMIH->biWidth * m_lpBMIH->biHeight];
+				pFile->Read(pBuffer2, m_lpBMIH->biWidth * m_lpBMIH->biHeight);
+				p16sDataPtr = (Ipp16s*)pSrcImageEx_16s.get()->DataPtr();
+				memcpy(p16sDataPtr, pBuffer2, m_lpBMIH->biSizeImage);
+				delete pBuffer2;
+				break;
+			case 24:
+			case 32:
+				int ByteDepth = m_lpBMIH->biBitCount / 8;
+				pBuffer = (BYTE*) new BYTE[ByteDepth];
+				for (int j = 0; j < m_lpBMIH->biHeight; j++)
+				{
+					for (int i = 0; i < m_lpBMIH->biWidth; i++)
+					{
+						pFile->Read(pBuffer, ByteDepth);
+						p16sDataPtr = (Ipp16s*)pSrcImageEx_16s.get()->Point(i, j);
+						*p16sDataPtr = 0;
+						for (int k = 0; k < ByteDepth; k++)
+						{
+							*p16sDataPtr += pBuffer[k];
+						}
+						*p16sDataPtr /= ByteDepth;
+					}
+				}
+				delete pBuffer;
+				break;
+			}
+
+			delete m_lpBMIH;
+
+
+
+			int Width = pSrcImageEx_16s.get()->Width();
+			int Height = pSrcImageEx_16s.get()->Height();
+			int BitDepth = 16;
+			m_BitDepth = BitDepth;
+			m_ImagePtr = new CIppiImage(*(pSrcImageEx_16s.get()));
+
+			if (ar.m_strFileName.Right(3).MakeLower().Compare(_T("jpg")) != 0)
+			{
+				ippiMirror_16u_C1IR((Ipp16u*)m_ImagePtr->DataPtr(), m_ImagePtr->Step(), m_ImagePtr->Size(), ippAxsHorizontal);
+			}
+
+
+
+		}
+		else if (ar.m_strFileName.Right(3).MakeLower().Compare(_T("raw")) == 0 )
 		{
 			CString FileName = _T("");
 			for (int i = 0; i < ar.m_strFileName.GetLength(); i++)

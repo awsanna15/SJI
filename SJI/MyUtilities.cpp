@@ -1,9 +1,11 @@
 #include "stdafx.h"
 #include "MyUtilities.h"
-#include "ippiImage.h"
-#include "IppiWrapperAlias.h"
 
+#include <opencv2/opencv.hpp>
+#include "opencv2/dnn.hpp"
 
+using namespace cv;
+using namespace std;
 
 int Round(const double d)
 {
@@ -177,4 +179,27 @@ void  FindTemplate(CIppiImage* pImage1, CIppiImage* pImage2, CIppiImage* pResult
 	MaxPos.x = (int)cMax.x;
 	MaxPos.y = (int)cMax.y;
 	MaxVal = resfVal;
+}
+
+void CreateImageMask(CIppiImage& Image8u, int BumpSizeInPixels)
+{
+	cv::Mat gray = cv::Mat(Image8u.Height(), Image8u.Width(), CV_8UC1, Image8u.DataPtr(), Image8u.Step());
+
+	Mat image_copy = gray.clone();
+	// Apply Gaussian Blur to reduce noise
+
+	cv::Mat blurred;
+	cv::medianBlur(gray, blurred, (BumpSizeInPixels / 2) * 2 - 1);
+	//cv::imshow("Blurred Image", blurred);
+	//cv::waitKey(0);
+
+	// Apply adaptive thresholding to extract dark areas (solder joints)
+	cv::Mat thresh;
+	cv::adaptiveThreshold(blurred, thresh, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY_INV, (BumpSizeInPixels) * 2 + 1, 2);
+
+	cv::Mat morph;
+	cv::morphologyEx(thresh, morph, cv::MORPH_DILATE, cv::Mat::ones((BumpSizeInPixels/3), (BumpSizeInPixels/3), CV_8UC1));
+
+
+	ippiCopy_8u_C1R((const Ipp8u*)morph.data, (int)morph.step, (Ipp8u*)Image8u.DataPtr(), Image8u.Step(), Image8u.Size());
 }

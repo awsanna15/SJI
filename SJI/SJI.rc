@@ -272,6 +272,7 @@ BEGIN
     POPUP "Inferencing"
     BEGIN
         MENUITEM "RunInference",                ID_INFERENCING_RUNINFERENCE
+        MENUITEM "Test Segments",               ID_INFERENCING_TESTSEGMENTS
     END
 END
 

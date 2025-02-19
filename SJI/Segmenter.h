@@ -3,6 +3,7 @@
 #include <opencv2/opencv.hpp>
 #include "BridgeResult.h"
 
+
 class CIppiImage;
 
 using namespace std;
@@ -19,10 +20,30 @@ enum FindBlobMethods
 enum BridgeCandidateSelectionMethods
 {
 	AdaptiveThreshold,
-	LookForNeighbours
+	LookForNeighbours,
+	SuspectsOnly,
 };
 
 
+struct ImageSingleObject
+{
+
+	CPoint	centre;
+	int		width;
+	int		height;
+	CPoint	realCentre;
+
+
+	CPoint floodfillpos;
+
+	unsigned int objID;
+	int bridgeID;
+
+
+
+};
+
+typedef std::vector<ImageSingleObject>  SingleObjectVec;
 
 
 
@@ -41,7 +62,7 @@ private:
 	BridgeCandidateSelectionMethods m_CandidateSelectMethod;
 
 private:
-	std::vector<cv::Point> m_BumpLocations;
+	SingleObjectVec m_BumpLocations;
 	std::vector<CCandidateBridge> m_BridgeCandidates;
 
 
@@ -50,9 +71,12 @@ private:
 	void ImageRegistrationBumpLocator();
 	void SimpleBumpCVBumpLocator();
 	void AdaptiveCandidateSelection();
+	void SuspectsOnly();
+	pair<float, float> GetRealPosition(CRect con, CIppiImage* pFeatureImage, int IDcol);
+	void PrepareSegmentImage(CCandidateBridge& Segment, CIppiImage& FeatureImage32f, CIppiImage* pImage, int BumpSizePix);
 public:
 
-	std::vector<cv::Point> GetBumpLocations();
+	SingleObjectVec GetBumpLocations();
 	std::vector<CCandidateBridge> GetBridgeCandidates();
 	void ClearAll();
 };

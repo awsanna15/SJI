@@ -17,15 +17,15 @@ CBridgeResult::CBridgeResult()
 
 CBridgeResult::CBridgeResult(CCandidateBridge candidate, float fbridge, float fnotBridge)
 {
-	int xpix= candidate.xpix;
-	int ypix= candidate.ypix;
-	int sizex= candidate.sizex;
-	int sizey= candidate.sizey;
-	float xreal= candidate.xreal;
-	float yreal= candidate.yreal;
-	CRect boundingRect= candidate.boundingRect;
+	xpix= candidate.xpix;
+	ypix= candidate.ypix;
+	sizex= candidate.sizex;
+	sizey= candidate.sizey;
+	xreal= candidate.xreal;
+	yreal= candidate.yreal;
+	boundingRect= candidate.boundingRect;
 	std::vector<int> listBumpIDs= candidate.listBumpIDs;
-	std::vector<POSITION>listBumpPixPos= candidate.listBumpPixPos;
+	std::vector<CPoint>listBumpPixPos= candidate.listBumpPixPos;
 	pBridgeImg=new CIppiImage(*candidate.pBridgeImg);
 
 
@@ -45,7 +45,6 @@ CBridgeResult::CBridgeResult(CCandidateBridge candidate, float fbridge, float fn
 
 CBridgeResult::~CBridgeResult()
 {
-	
 
 }
 
@@ -58,6 +57,8 @@ CCandidateBridge::CCandidateBridge()
 	, yreal(-1)
 	, boundingRect(0, 0, 0, 0)
 	, pBridgeImg(NULL)
+	, lp1(-1)
+	, BridgeID(-1)
 {
 }
 
@@ -65,8 +66,5 @@ CCandidateBridge::~CCandidateBridge()
 {
 	listBumpIDs.clear();
 	listBumpPixPos.clear();
-	if (pBridgeImg != NULL)
-	{
-		delete pBridgeImg;
-	}
+
 }

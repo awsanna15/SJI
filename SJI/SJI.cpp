@@ -48,6 +48,7 @@ BEGIN_MESSAGE_MAP(CSJIApp, CWinAppEx)
 	ON_COMMAND(ID_SEGMENTATION_SIMPLEBUMPCV, &CSJIApp::OnSegmentationSimplebumpcv)
 	ON_COMMAND(ID_TESTFUNCTIONS_ADAPTIVETHREASHOLD, &CSJIApp::OnTestfunctionsAdaptivethreashold)
 	ON_COMMAND(ID_INFERENCING_RUNINFERENCE, &CSJIApp::OnInferencingRuninference)
+	ON_COMMAND(ID_INFERENCING_TESTSEGMENTS, &CSJIApp::OnInferencingTestsegments)
 END_MESSAGE_MAP()
 
 
@@ -271,14 +272,14 @@ void CSJIApp::OnSegmentationEdgebasedsegment()
 			CIppiImage* pImage1 = pDoc1->m_ImagePtr;
 
 			CSegmenter Segmenter(pImage1,EdgeBased);
-			std::vector<cv::Point> circleCenters = Segmenter.GetBumpLocations();
+			SingleObjectVec circleCenters = Segmenter.GetBumpLocations();
 			//draw  markers
 			
 			pDoc1->m_RectArray.RemoveAll();
 			pDoc1->m_RectCol.RemoveAll();
 			for (int i = 0; i < circleCenters.size(); i++)
 			{
-				cv::Point cp = circleCenters[i];
+				CPoint cp = circleCenters[i].centre;
 				CRect rect = CRect(cp.x - 1, cp.y - 1, cp.x + 2, cp.y + 2);
 				pDoc1->m_RectArray.Add(rect);
 				pDoc1->m_RectCol.Add(col);
@@ -304,15 +305,15 @@ void CSJIApp::OnSegmentationImageregistration()
 			CSJIDoc* pDoc1 = OpenPages.GetDocAt(i);
 			CIppiImage* pImage1 = pDoc1->m_ImagePtr;
 
-			CSegmenter Segmenter(pImage1, ImageRegistration);
-			std::vector<cv::Point> circleCenters = Segmenter.GetBumpLocations();
+			CSegmenter Segmenter(pImage1, SimpleBumpCV, SuspectsOnly);
+			SingleObjectVec circleCenters = Segmenter.GetBumpLocations();
 			//draw  markers
 
 			pDoc1->m_RectArray.RemoveAll();
 			pDoc1->m_RectCol.RemoveAll();
 			for (int i = 0; i < circleCenters.size(); i++)
 			{
-				cv::Point cp = circleCenters[i];
+				CPoint cp = circleCenters[i].centre;
 				CRect rect = CRect(cp.x - 1, cp.y - 1, cp.x + 2, cp.y + 2);
 				pDoc1->m_RectArray.Add(rect);
 				pDoc1->m_RectCol.Add(col);
@@ -341,14 +342,14 @@ void CSJIApp::OnSegmentationSimplebumpcv()
 			CIppiImage* pImage1 = pDoc1->m_ImagePtr;
 
 			CSegmenter Segmenter(pImage1, SimpleBumpCV);
-			std::vector<cv::Point> circleCenters = Segmenter.GetBumpLocations();
+			SingleObjectVec circleCenters = Segmenter.GetBumpLocations();
 			//draw  markers
 
 			pDoc1->m_RectArray.RemoveAll();
 			pDoc1->m_RectCol.RemoveAll();
 			for (int i = 0; i < circleCenters.size(); i++)
 			{
-				cv::Point cp = circleCenters[i];
+				CPoint cp = circleCenters[i].centre;
 				CRect rect = CRect(cp.x - 1, cp.y - 1, cp.x + 2, cp.y + 2);
 				pDoc1->m_RectArray.Add(rect);
 				pDoc1->m_RectCol.Add(col);
@@ -377,25 +378,10 @@ void CSJIApp::OnTestfunctionsAdaptivethreashold()
 
 		SmartConversionto8bit(*pImage1, Image8u);
 
-		cv::Mat gray = cv::Mat(Image8u.Height(), Image8u.Width(), CV_8UC1, Image8u.DataPtr(), Image8u.Step());
 
-		Mat image_copy = gray.clone();
-		// Apply Gaussian Blur to reduce noise
-
-		cv::Mat blurred;
-		cv::medianBlur(gray, blurred, (BumpSizeInPixels/2)*2-1);
-		//cv::imshow("Blurred Image", blurred);
-		//cv::waitKey(0);
-
-		// Apply adaptive thresholding to extract dark areas (solder joints)
-		cv::Mat thresh;
-		cv::adaptiveThreshold(blurred, thresh, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY_INV, (BumpSizeInPixels)*2+1, 2);
-
-		cv::Mat morph;
-		cv::morphologyEx(thresh, morph, cv::MORPH_DILATE, cv::Mat::ones(3, 3, CV_8UC1));
+		CreateImageMask(Image8u, BumpSizeInPixels);
 
 
-		ippiCopy_8u_C1R((const Ipp8u*)morph.data, (int)morph.step, (Ipp8u*)Image8u.DataPtr(), Image8u.Step(), Image8u.Size());
 		CIppiImage* pResult = new CIppiImage(pImage1->Width(), pImage1->Height(), 1, pp16s);
 		ippiConvert_8u16s_C1R((const Ipp8u*)Image8u.DataPtr(), Image8u.Step(), (Ipp16s*)pResult->DataPtr(), pResult->Step(), pResult->Size());
 		CWinApp::OnFileNew();
@@ -405,8 +391,12 @@ Image8u.SaveImage(_T("C:\\Temp\\Image8u.bmp"));
 }
 
 
+
+
 void CSJIApp::OnInferencingRuninference()
 {
+
+	int BumpSizeInPixels = 8;
 	if (OpenPages.GetCount() >= 1)
 	{
 		std::vector<CBridgeResult> bridgeResults;
@@ -416,7 +406,7 @@ void CSJIApp::OnInferencingRuninference()
 			CSJIDoc* pDoc1 = OpenPages.GetDocAt(i);
 			CIppiImage* pImage1 = pDoc1->m_ImagePtr;
 
-			CSegmenter Segmenter(pImage1, SimpleBumpCV);
+			CSegmenter Segmenter(pImage1, SimpleBumpCV, SuspectsOnly, BumpSizeInPixels);
 			std::vector<CCandidateBridge> candidateList = Segmenter.GetBridgeCandidates();
 			
 
@@ -425,7 +415,7 @@ void CSJIApp::OnInferencingRuninference()
 			// do inference on each end every candidate ************************************************************
 			//Use onnx model to classify images
 				// Load the ONNX model
-			std::string modelPath = "model.onnx";  // Change this to your ONNX model path
+			std::string modelPath = "C:\\Models\\DeepCNNmodel.onnx";  // Change this to your ONNX model path
 			cv::dnn::Net net = cv::dnn::readNetFromONNX(modelPath);
 			if (net.empty()) 
 			{
@@ -435,45 +425,46 @@ void CSJIApp::OnInferencingRuninference()
 
 			for (int c = 0; c < candidateList.size(); c++)
 			{
-				CIppiImage* pSegment = candidateList[c].pBridgeImg;
+				CIppiImage* pSegment = candidateList[c].pBridgeImg;   // should be 8bit 224x224 image
+				
 				cv::Mat finalCropped = cv::Mat(pSegment->Height(), pSegment->Width(), CV_8UC1, pSegment->DataPtr(), pSegment->Step());
 				finalCropped.convertTo(finalCropped, CV_8U);
 
-				cv::Mat equalizedImg;
-				cv::equalizeHist(finalCropped, equalizedImg);  // Apply histogram equalisation
+				int width = finalCropped.cols;
+				int height = finalCropped.rows;
 
-				int width = equalizedImg.cols;
-				int height = equalizedImg.rows;
+				int segmentsize = 56;
 
 				int new_width, new_height;
 				if (width > height) {
-					new_width = 224;
-					new_height = static_cast<int>(height * (224.0 / width));
+					new_width = segmentsize;
+					new_height = segmentsize;
 				}
 				else {
-					new_height = 224;
-					new_width = static_cast<int>(width * (224.0 / height));
+					new_height = segmentsize;
+					new_width = segmentsize;
 				}
 
 				// Resize the image while keeping the aspect ratio
 				cv::Mat resizedImg;
-				cv::resize(equalizedImg, resizedImg, cv::Size(new_width, new_height), 0, 0, cv::INTER_LINEAR);
+				cv::resize(finalCropped, resizedImg, cv::Size(new_width, new_height), 0, 0, cv::INTER_LINEAR);
 
-				// Create a 224x224 white image
-				cv::Mat finalImg(224, 224, resizedImg.type(), cv::Scalar(255, 255, 255));
+
+				cv::Mat finalImg(segmentsize, segmentsize, resizedImg.type(), cv::Scalar(255, 255, 255));
 
 				// Compute the position to center the resized image
-				int x_offset = (224 - new_width) / 2;
-				int y_offset = (224 - new_height) / 2;
+				int x_offset = (segmentsize - new_width) / 2;
+				int y_offset = (segmentsize - new_height) / 2;
 
 				// Place resized image in the center of the white background
 				resizedImg.copyTo(finalImg(cv::Rect(x_offset, y_offset, new_width, new_height)));
 
 				cv::Mat blob;
-				cv::dnn::blobFromImage(finalImg, blob, 1.0 / 255.0, cv::Size(224, 224), cv::Scalar(0, 0, 0), true, false);
+				blob = cv::dnn::blobFromImage(finalImg, 1.0 / 255.0, cv::Size(segmentsize, segmentsize), cv::Scalar(0), false, false);
 
 				// Set the blob as the input to the network
 				net.setInput(blob);
+
 
 				// Run forward pass to classify the image
 				cv::Mat output = net.forward();
@@ -487,7 +478,7 @@ void CSJIApp::OnInferencingRuninference()
 				//store inference results in result array
 				float fbridge = classId==1 ? (float)confidence : 1.0f- (float)confidence;
 				float fnotbridge = 1.0f - fbridge;
-				bridgeResults.push_back(CBridgeResult(candidateList[c], fbridge, confidence));
+				bridgeResults.push_back(CBridgeResult(candidateList[c], fbridge, fnotbridge));
 			}
 
 			// store image segments to the dedicated result folders (bridge, notbridge) ****************************************
@@ -517,13 +508,93 @@ void CSJIApp::OnInferencingRuninference()
 					pDoc1->m_RectArray.Add(bridgeResults[i].boundingRect);
 					pDoc1->m_RectCol.Add(2); //red
 				}
+				else
+				{
+					pDoc1->m_RectArray.Add(bridgeResults[i].boundingRect);
+					pDoc1->m_RectCol.Add(1); //green
+				}
 			}
 			PresentResult(pDoc1);
 
+			bridgeResults.clear();
 
 		}
 
 
 
+	}
+}
+
+
+void CSJIApp::OnInferencingTestsegments()
+{
+	
+	if (OpenPages.GetCount() >= 1)
+	{
+		std::string modelPath = "C:\\Models\\DeepCNNmodel.onnx";  // Change this to your ONNX model path
+		cv::dnn::Net net = cv::dnn::readNetFromONNX(modelPath);
+
+		for (int i = 0; i < OpenPages.GetCount(); i++)
+		{
+			CSJIDoc* pDoc1 = OpenPages.GetDocAt(i);
+			pDoc1->m_RectArray.RemoveAll();
+			pDoc1->m_RectCol.RemoveAll();
+			
+			CIppiImage* pSegment = pDoc1->m_ImagePtr;
+			CIppiImage Image8u(pSegment->Width(), pSegment->Height(),1,pp8u);
+			ippiConvert_16s8u_C1R((const Ipp16s*)pSegment->DataPtr(), pSegment->Step(), (Ipp8u*)Image8u.DataPtr(), Image8u.Step(), Image8u.Size());
+
+			cv::Mat finalCropped = cv::Mat(pSegment->Height(), pSegment->Width(), CV_8UC1, Image8u.DataPtr(), Image8u.Step());
+			finalCropped.convertTo(finalCropped, CV_8U);
+
+			int width = finalCropped.cols;
+			int height = finalCropped.rows;
+
+			int segmentsize = 56;
+
+			int new_width, new_height;
+			if (width > height) {
+				new_width = segmentsize;
+				new_height = segmentsize;
+			}
+			else {
+				new_height = segmentsize;
+				new_width = segmentsize;
+			}
+
+			// Resize the image while keeping the aspect ratio
+			cv::Mat resizedImg;
+			cv::resize(finalCropped, resizedImg, cv::Size(new_width, new_height), 0, 0, cv::INTER_LINEAR);
+
+
+			cv::Mat finalImg(segmentsize, segmentsize, resizedImg.type(), cv::Scalar(255, 255, 255));
+
+			// Compute the position to center the resized image
+			int x_offset = (segmentsize - new_width) / 2;
+			int y_offset = (segmentsize - new_height) / 2;
+
+			// Place resized image in the center of the white background
+			resizedImg.copyTo(finalImg(cv::Rect(x_offset, y_offset, new_width, new_height)));
+
+			cv::Mat blob;
+			blob=cv::dnn::blobFromImage(finalImg, 1.0 / 255.0, cv::Size(segmentsize, segmentsize), cv::Scalar(0), false, false);
+
+			// Set the blob as the input to the network
+			net.setInput(blob);
+
+
+			// Run forward pass to classify the image
+			cv::Mat output = net.forward();
+
+			// Interpret output: Find the index of the highest confidence score
+			cv::Point classIdPoint;
+			double confidence;
+			cv::minMaxLoc(output, nullptr, &confidence, nullptr, &classIdPoint);
+			int classId = classIdPoint.x;
+
+			pDoc1->m_RectArray.Add(CRect(5, 5, 20, 20));
+			pDoc1->m_RectCol.Add(classId+1);
+			PresentResult(pDoc1);
+		}
 	}
 }

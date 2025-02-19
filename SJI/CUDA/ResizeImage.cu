@@ -1246,6 +1246,27 @@ extern "C" void Rotate(unsigned short *SrcDst, int iwDst, int ihDst, float fAngl
 }
 
 
+extern "C" void Rotate8u(unsigned char* SrcDst, int iwDst, int ihDst, float fAngleDeg)
+{
+	unsigned char* dev_result = NULL;
+	unsigned char* dev_src = NULL;
+
+
+	checkCudaErrors(cudaMalloc(&dev_src, sizeof(unsigned char) * iwDst * ihDst));
+	checkCudaErrors(cudaMemcpy(dev_src, SrcDst, sizeof(unsigned char) * iwDst * ihDst, cudaMemcpyHostToDevice));
+
+	checkCudaErrors(cudaMalloc((void**)&dev_result, iwDst * ihDst * sizeof(unsigned char)));
+
+	Rotate8u_Dev(dev_result, dev_src, iwDst, ihDst, fAngleDeg);
+
+
+	checkCudaErrors(cudaMemcpy(SrcDst, dev_result, iwDst * ihDst * sizeof(unsigned char), cudaMemcpyDeviceToHost));
+
+
+	checkCudaErrors(cudaFree(dev_src));
+	checkCudaErrors(cudaFree(dev_result));
+}
+
 
 
 extern "C" void SetC_Dev(unsigned short *dev_SrcDest,int wDst, int hDst, unsigned short ValC)

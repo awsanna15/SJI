@@ -20,6 +20,7 @@ extern "C" void Rotate_Dev(unsigned short *dev_result, unsigned short *dev_src, 
 extern "C" void Rotate8u_Dev(unsigned char *dev_result, unsigned char *dev_src, int iwDst, int ihDst, float fAngleRad);
 extern "C" void Rotate(unsigned short *SrcDst, int iwDst, int ihDst, float fAngleDeg);
 
+extern "C" void Rotate8u(unsigned char* SrcDst, int iwDst, int ihDst, float fAngleDeg);
 
 extern "C" void ShiftImage(unsigned short *SrcDst, int iwDst, int ihDst, const float dx, const float dy);
 extern "C" void ShiftImage_dev(unsigned short *dev_src, int iwDst, int ihDst, const float dx, const float dy);

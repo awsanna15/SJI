@@ -18,8 +18,12 @@ public:
 	float yreal;
 	CRect boundingRect;
 	std::vector<int> listBumpIDs;
-	std::vector<POSITION>listBumpPixPos;
+	std::vector<CPoint>listBumpPixPos;
 	CIppiImage* pBridgeImg;
+
+	int BridgeID;
+
+	int lp1;
 
 };
 

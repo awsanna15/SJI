@@ -49,7 +49,9 @@ public:
 	afx_msg void OnSegmentationImageregistration();
 	afx_msg void OnSegmentationSimplebumpcv();
 	afx_msg void OnTestfunctionsAdaptivethreashold();
+
 	afx_msg void OnInferencingRuninference();
+	afx_msg void OnInferencingTestsegments();
 };
 
 extern CSJIApp theApp;
