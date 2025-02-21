@@ -203,3 +203,15 @@ void CreateImageMask(CIppiImage& Image8u, int BumpSizeInPixels)
 
 	ippiCopy_8u_C1R((const Ipp8u*)morph.data, (int)morph.step, (Ipp8u*)Image8u.DataPtr(), Image8u.Step(), Image8u.Size());
 }
+
+bool dirExists(CStringA strDir)
+{
+	DWORD ftyp = GetFileAttributesA(strDir);
+	if (ftyp == INVALID_FILE_ATTRIBUTES)
+		return false;  //something is wrong with your path!
+
+	if (ftyp & FILE_ATTRIBUTE_DIRECTORY)
+		return true;   // this is a directory!
+
+	return false;    // this is not a directory!
+}

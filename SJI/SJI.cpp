@@ -25,6 +25,8 @@
 #include <unordered_map>
 #include "math.h"
 #include "Segmenter.h"
+#include "DageIpp.h"
+#include "ippiImageDC.h"
 
 using namespace cv;
 using namespace std;
@@ -294,6 +296,111 @@ void CSJIApp::OnSegmentationEdgebasedsegment()
 	}
 }
 
+void CSJIApp::SaveResults(CString SaveResultsDir, std::vector<CBridgeResult>& bridgeResults, CIppiImage* pInspectionImage)
+{
+	CStringA strSaveImageDir = CStringA(SaveResultsDir);
+	CString strDir = CString(strSaveImageDir);
+	if (strDir.GetAllocLength() == 0)
+	{
+		CString tmpstr;
+
+		if (tmpstr.GetAllocLength() > 0)
+		{
+			strDir = tmpstr;
+			strSaveImageDir = tmpstr;
+		}
+	}
+
+	BOOL bDirExist = FALSE;
+	if (!dirExists(strSaveImageDir))
+	{
+		int pos = strDir.ReverseFind('\\');
+		CStringA strPartial = strSaveImageDir.Mid(0, pos);
+		if (dirExists(strPartial))
+		{
+			CreateDirectory(strDir, 0);
+			strDir.Append(_T("\\001"));
+			CreateDirectory(strDir, 0);
+			bDirExist = TRUE;
+		}
+
+	}
+	else
+	{
+		int cnt = 1;
+		CString tmpStr;
+		do
+		{
+			tmpStr.Format(_T("%s\\%03d"), strDir, cnt);
+			cnt++;
+		} while (dirExists(CStringA(tmpStr)));
+		strDir = (tmpStr);
+		CreateDirectory(strDir, 0);
+		bDirExist = TRUE;
+	}
+
+	CString strDirBridge = strDir + _T("\\Bridge");
+	CreateDirectory(strDirBridge, 0);
+	CString strDirNonBridge = strDir + _T("\\Non-Bridge");
+	CreateDirectory(strDirNonBridge, 0);
+
+	CString str;
+	for (int i = 0; i < bridgeResults.size(); i++)
+	{
+		Sleep(2); // to prevent overwrite with the same name
+		if (bridgeResults[i].m_bIsTrueBridge)
+		{
+			str.Format(_T("%s\\cb_%03d.bmp"),strDirBridge, GetTickCount());
+            bridgeResults[i].pBridgeImg->SaveImage(str);
+		}
+		else
+		{
+			str.Format(_T("%s\\cb_%03d.bmp"), strDirNonBridge, GetTickCount());
+			bridgeResults[i].pBridgeImg->SaveImage(str);
+		}
+	}
+
+	//*********************************** draw overlay on result image *******************************
+	CIppiImage Image8u(pInspectionImage->Width(), pInspectionImage->Height(), 1, pp8u);
+	SmartConversionto8bit(*pInspectionImage, Image8u);
+//Image8u.SaveImage(_T("C:\\Temp\\Image8u.bmp"));
+	CIppiImage Image8u3R(Image8u.Width(), Image8u.Height(), 3, pp8u);
+	DageIPP::ippiConv_8u_C1C3R(&Image8u, &Image8u3R);
+//Image8u3R.SaveImage(_T("C:\\Temp\\Image8u3R.bmp"));
+	int bridgeThickness = 2;
+
+	CClientDC     dcClient(nullptr);
+	CIppiImageDC* pimDC = new CIppiImageDC;
+	pimDC->Create(&dcClient, &Image8u3R);
+	pimDC->SetData();
+	CBrush* oldBrush = (CBrush*)pimDC->SelectStockObject(NULL_BRUSH);
+	for (int i = 0; i < bridgeResults.size(); i++)
+	{
+		if (bridgeResults[i].m_bIsTrueBridge)
+		{
+			CPoint pt = CPoint(bridgeResults[i].xpix, bridgeResults[i].ypix);
+			int ddx = bridgeResults[i].boundingRect.Width() / 4 * 3;
+			int ddy = bridgeResults[i].boundingRect.Height() / 4 * 3;
+			CPen pen(PS_SOLID, bridgeThickness, RGB(255, 0, 0)); // overlay colour red
+			CPen* oldpen = pimDC->SelectObject(&pen);
+
+			pimDC->Ellipse(pt.x - ddx, pt.y - ddy, pt.x + ddx, pt.y + ddy);
+			pimDC->SelectObject(oldpen);
+		}
+	}
+	pimDC->SetImage();
+
+	pimDC->SelectObject(oldBrush);
+	delete pimDC;
+	pimDC = nullptr;
+
+	str.Format(_T("%s\\Result_%03d.bmp"), strDir, GetTickCount());
+	Image8u3R.SaveImage(str);
+}
+
+
+
+
 void CSJIApp::OnSegmentationImageregistration()
 {
 	int col = 1; //green
@@ -495,9 +602,12 @@ void CSJIApp::OnInferencingRuninference()
 				//	candidateList[i].pBridgeImg->SaveImage(_T(""));
 				}
 			}
-			
+			CString SaveResultsDir = _T("C:\\Results");
+			SaveResults(SaveResultsDir, bridgeResults, Segmenter.GetInspectionImage());
 			
 		// ***** present the results ************************
+			
+
 
 			pDoc1->m_RectArray.RemoveAll();
 			pDoc1->m_RectCol.RemoveAll();

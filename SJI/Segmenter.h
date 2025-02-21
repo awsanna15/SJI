@@ -78,6 +78,11 @@ public:
 
 	SingleObjectVec GetBumpLocations();
 	std::vector<CCandidateBridge> GetBridgeCandidates();
+	CIppiImage* GetInspectionImage() 
+	{ 
+		return m_pInspectionImage; 
+	}
+
 	void ClearAll();
 };
 

@@ -14,6 +14,8 @@
 // See SJI.cpp for the implementation of this class
 //
 #include "OPenPages.h"
+#include "BridgeResult.h"
+#include <vector>
 
 class CSJIApp : public CWinAppEx
 {
@@ -44,7 +46,7 @@ public:
 
 
 private:
-	
+	void SaveResults(CString SaveResultsDir, std::vector<CBridgeResult>& bridgeResults, CIppiImage* pInspectionImage);
 public:
 	afx_msg void OnSegmentationImageregistration();
 	afx_msg void OnSegmentationSimplebumpcv();
