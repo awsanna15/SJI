@@ -3,7 +3,7 @@
 #include "IppiWrapperAlias.h"
 
 int Round(const double d);
-void SmartConversionto8bit(CIppiImage& SrcImage, CIppiImage& ResultImage);
+void SmartConversionto8bit(CIppiImage& SrcImage, CIppiImage& ResultImage, CRect roi);
 void  FindTemplate(CIppiImage* pImage1, CIppiImage* pImage2, CIppiImage* pResultImage, CPoint& MaxPos, double& MaxVal);
 void CreateBumpTemplate(CIppiImage& tmpBumpTemplate, const int BumpSizeInPixels);
 void CreateImageMask(CIppiImage& Image8u, int BumpSizeInPixels);

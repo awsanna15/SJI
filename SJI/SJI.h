@@ -46,7 +46,8 @@ public:
 
 
 private:
-	void SaveResults(CString SaveResultsDir, std::vector<CBridgeResult>& bridgeResults, CIppiImage* pInspectionImage);
+	void SaveResults(CString strDir, std::vector<CBridgeResult>& bridgeResults, CIppiImage* pInspectionImage);
+	CString CreateNewResultsDir(CString SaveResultsDir);
 public:
 	afx_msg void OnSegmentationImageregistration();
 	afx_msg void OnSegmentationSimplebumpcv();

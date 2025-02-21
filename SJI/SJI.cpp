@@ -296,7 +296,7 @@ void CSJIApp::OnSegmentationEdgebasedsegment()
 	}
 }
 
-void CSJIApp::SaveResults(CString SaveResultsDir, std::vector<CBridgeResult>& bridgeResults, CIppiImage* pInspectionImage)
+CString CSJIApp::CreateNewResultsDir(CString SaveResultsDir)
 {
 	CStringA strSaveImageDir = CStringA(SaveResultsDir);
 	CString strDir = CString(strSaveImageDir);
@@ -339,6 +339,13 @@ void CSJIApp::SaveResults(CString SaveResultsDir, std::vector<CBridgeResult>& br
 		bDirExist = TRUE;
 	}
 
+	return strDir;
+}
+
+void CSJIApp::SaveResults(CString strDir, std::vector<CBridgeResult>& bridgeResults, CIppiImage* pInspectionImage)
+{
+	
+
 	CString strDirBridge = strDir + _T("\\Bridge");
 	CreateDirectory(strDirBridge, 0);
 	CString strDirNonBridge = strDir + _T("\\Non-Bridge");
@@ -362,7 +369,7 @@ void CSJIApp::SaveResults(CString SaveResultsDir, std::vector<CBridgeResult>& br
 
 	//*********************************** draw overlay on result image *******************************
 	CIppiImage Image8u(pInspectionImage->Width(), pInspectionImage->Height(), 1, pp8u);
-	SmartConversionto8bit(*pInspectionImage, Image8u);
+	SmartConversionto8bit(*pInspectionImage, Image8u, CRect(0,0, pInspectionImage->Width(), pInspectionImage->Height()));
 //Image8u.SaveImage(_T("C:\\Temp\\Image8u.bmp"));
 	CIppiImage Image8u3R(Image8u.Width(), Image8u.Height(), 3, pp8u);
 	DageIPP::ippiConv_8u_C1C3R(&Image8u, &Image8u3R);
@@ -483,7 +490,7 @@ void CSJIApp::OnTestfunctionsAdaptivethreashold()
 
 		CIppiImage Image8u(pImage1->Width(), pImage1->Height(), 1, pp8u);
 
-		SmartConversionto8bit(*pImage1, Image8u);
+		SmartConversionto8bit(*pImage1, Image8u, CRect(Image8u.Width() / 4, Image8u.Height() / 4, Image8u.Width() * 3 / 4, Image8u.Height() * 3 / 4));
 
 
 		CreateImageMask(Image8u, BumpSizeInPixels);
@@ -506,6 +513,9 @@ void CSJIApp::OnInferencingRuninference()
 	int BumpSizeInPixels = 14;
 	if (OpenPages.GetCount() >= 1)
 	{
+		CString SaveResultsDir = _T("C:\\Results");
+		CString strDir=CreateNewResultsDir(SaveResultsDir);
+
 		std::vector<CBridgeResult> bridgeResults;
 
 		for (int i = 0; i < OpenPages.GetCount(); i++)
@@ -602,8 +612,8 @@ void CSJIApp::OnInferencingRuninference()
 				//	candidateList[i].pBridgeImg->SaveImage(_T(""));
 				}
 			}
-			CString SaveResultsDir = _T("C:\\Results");
-			SaveResults(SaveResultsDir, bridgeResults, Segmenter.GetInspectionImage());
+			
+			SaveResults(strDir, bridgeResults, pImage1);
 			
 		// ***** present the results ************************
 			
@@ -641,6 +651,7 @@ void CSJIApp::OnInferencingTestsegments()
 	
 	if (OpenPages.GetCount() >= 1)
 	{
+
 		std::string modelPath = "C:\\Models\\DeepCNNmodel.onnx";  // Change this to your ONNX model path
 		cv::dnn::Net net = cv::dnn::readNetFromONNX(modelPath);
 

@@ -27,8 +27,9 @@ int Round(const double d)
 	}
 } // Round
 
-void SmartConversionto8bit(CIppiImage& SrcImage, CIppiImage& ResultImage)
+void SmartConversionto8bit(CIppiImage& SrcImage, CIppiImage& ResultImage, CRect roi)
 {
+	
 	double LowerLim = 0.0;
 	double UpperLim = 0.0;
 	SrcImage.GetMinMaxMean(&LowerLim, &UpperLim, nullptr, 0);
@@ -40,11 +41,12 @@ void SmartConversionto8bit(CIppiImage& SrcImage, CIppiImage& ResultImage)
 	const int nLevels = upperLevel - lowerLevel;
 	Ipp32s* pHisto = new Ipp32s[nLevels];
 	Ipp32s* pLevels = new Ipp32s[nLevels + 1];
-	ippiHistogramEven_16u_C1R((const Ipp16u*)SrcImage.DataPtr(), SrcImage.Step(), SrcImage.Size(),
+	IppiSize sz = { roi.Width(), roi.Height()};
+	ippiHistogramEven_16u_C1R((const Ipp16u*)SrcImage.Point(roi.left, roi.top), SrcImage.Step(), sz,
 		(Ipp32s*)pHisto, (Ipp32s*)pLevels, (nLevels + 1), lowerLevel, upperLevel);
 	int indlow = 0;
 	int indhigh = nLevels + 1;
-	int OnePc = Round(double(SrcImage.Width() * SrcImage.Height()) * 0.001);
+	int OnePc = Round(double(roi.Width() * roi.Height()) * 0.001);
 	int sum = 0;
 	for (indlow = 0; indlow < nLevels && sum < OnePc; indlow++)
 	{
@@ -59,6 +61,18 @@ void SmartConversionto8bit(CIppiImage& SrcImage, CIppiImage& ResultImage)
 	int hi = pLevels[indhigh + 1];
 	low = Round(low - 2 * double(hi - low) / 98);
 	hi = Round(hi + 2 * double(hi - low) / 98);
+
+	//int maxval=0;
+	//int maxinx=0;
+	//for (int i = 0; i < nLevels ; i++)
+	//{
+	//	if (maxval < pHisto[i])
+	//	{
+	//		maxval = pHisto[i];
+	//		maxinx = pLevels[i];
+	//	}
+	//}
+	//hi = hi - 1.0 * (hi - maxinx);
 
 	CIppiImage tmp32f(SrcImage.Width(), SrcImage.Height(), 1, pp32f);
 	ippiConvert_16s32f_C1R((const Ipp16s*)SrcImage.DataPtr(), SrcImage.Step(), (Ipp32f*)tmp32f.DataPtr(), tmp32f.Step(), tmp32f.Size());
@@ -202,6 +216,8 @@ void CreateImageMask(CIppiImage& Image8u, int BumpSizeInPixels)
 
 
 	ippiCopy_8u_C1R((const Ipp8u*)morph.data, (int)morph.step, (Ipp8u*)Image8u.DataPtr(), Image8u.Step(), Image8u.Size());
+
+//	Image8u.MedianFilter(5,5);
 }
 
 bool dirExists(CStringA strDir)

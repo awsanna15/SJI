@@ -103,8 +103,8 @@ void CSegmenter::EdgeBasedBumpLocator()
 	CIppiImage* pImage1 = m_pInspectionImage;
 
 	CIppiImage Image8u(pImage1->Width(), pImage1->Height(), 1, pp8u);
-
-	SmartConversionto8bit(*pImage1, Image8u);
+	//CRect(Image8u.Width()/4, Image8u.Height()/4, Image8u.Width()*3 / 4, Image8u.Height() *3/ 4)
+	SmartConversionto8bit(*pImage1, Image8u, CRect(0,0, Image8u.Width(), Image8u.Height()));
 
 	cv::Mat gray = cv::Mat(Image8u.Height(), Image8u.Width(), CV_8UC1, Image8u.DataPtr(), Image8u.Step());
 
@@ -246,7 +246,8 @@ void CSegmenter::SimpleBumpCVBumpLocator()
 	CIppiImage *pImage1 = m_pInspectionImage;
 
 	CIppiImage Image8u(pImage1->Width(), pImage1->Height(), 1, pp8u);
-	SmartConversionto8bit(*pImage1, Image8u);
+	//CRect(Image8u.Width() / 4, Image8u.Height() / 4, Image8u.Width() * 3 / 4, Image8u.Height() * 3 / 4)
+	SmartConversionto8bit(*pImage1, Image8u, CRect(0, 0, Image8u.Width(), Image8u.Height()));
 	cv::Mat gray = cv::Mat(Image8u.Height(), Image8u.Width(), CV_8UC1, Image8u.DataPtr(), Image8u.Step());
 
 	SimpleBlobDetector::Params params;
@@ -293,7 +294,8 @@ void CSegmenter::SuspectsOnly()
 	CIppiImage* pImage1 = m_pInspectionImage;
 
 	CIppiImage Image8u(pImage1->Width(), pImage1->Height(), 1, pp8u);
-	SmartConversionto8bit(*pImage1, Image8u);
+	//CRect(Image8u.Width() / 4, Image8u.Height() / 4, Image8u.Width() * 3 / 4, Image8u.Height() * 3 / 4)
+	SmartConversionto8bit(*pImage1, Image8u, CRect(0, 0, Image8u.Width(), Image8u.Height()));
 
 	CIppiImage Image8ucopy(Image8u);
 
@@ -412,7 +414,7 @@ void CSegmenter::SuspectsOnly()
 
 							float dx = static_cast<float>(ot_now.floodfillpos.x - ot_first.floodfillpos.x);
 							float dy = static_cast<float>(ot_now.floodfillpos.y - ot_first.floodfillpos.y);
-							if (_hypot(dx, dy) > m_BumpSizeInPixels)
+							if (_hypot(dx, dy) > m_BumpSizeInPixels && (cb.boundingRect.Width() >1.5* m_BumpSizeInPixels || cb.boundingRect.Height() > 1.5 * m_BumpSizeInPixels) && cb.boundingRect.Width() < 10* m_BumpSizeInPixels && cb.boundingRect.Height() < 10 * m_BumpSizeInPixels)
 							{
 								cb.BridgeID = m_BridgeCandidates.size() + 1;
 								m_BridgeCandidates.push_back(cb);
@@ -647,7 +649,7 @@ pImage8FOV->SaveImage(_T("C:\\Temp\\pImage8FOV.bmp"));
 				yi = Round(yf);
 				const auto this_feature32_img_pixel = CPoint(xi + cp.x, yi + cp.y);
 				BOOL b_is_this_xy_loc_valid = FeatureImage32f.PointInImage(this_feature32_img_pixel) && (lp1_f == *(static_cast<Ipp32f*>(FeatureImage32f.Point(this_feature32_img_pixel))));
-
+				b_is_this_xy_loc_valid = true;
 				if (b_is_this_icon_img_pixel_valid && b_is_this_xy_loc_valid)
 				{
 					weight_00 = kx * ky;
@@ -729,15 +731,37 @@ pImage8FOV->SaveImage(_T("C:\\Temp\\pImage8FOV.bmp"));
 			e2 = j;
 		}
 	}
-//	int shifty = (s1 + s2 + e1 + e2) / 4 - iconsize / 2;
-////	ShiftXYImage8u((unsigned char*)pImage->DataPtr(), pImage->Step(), pImage->Height(), 0, shifty);
-//	float dy = static_cast<float>(s1 + e1) / 2 - static_cast<float>(s2 + e2) / 2;
-//	float dx = static_cast<float>(0.8 * iconsize - 2);
-//	float adeg = atan2(dy, dx) * 180.0f / static_cast<float>(PI);
-//	Rotate8u((unsigned char*)pImage->DataPtr(), pImage->Step(), pImage->Height(), -adeg);
 
-	ippiThreshold_LTValGTVal_8u_C1IR((Ipp8u*)pImage->DataPtr(), pImage->Step(), pImage->Size(), 0, 0, 255, 255);
+	//int Histogram[256];
+	//memset(Histogram, 0, sizeof(int) * 256);
+	//for (int j = 0; j < pImage->Height(); j++)
+	//{
+	//	for (int i = 0; i < pImage->Width(); i++)
+	//	{
+	//		Histogram[*(Ipp8u*)pImage->Point(i, j)]++;
+	//	}
+	//}
+	//int thOnePct = (pImage->Width() * pImage->Height() - Histogram[255]) * 0.01;
+	//int newtopinx = 254;
+	//int sum = 0;
+	//for (newtopinx = 254; newtopinx >= 0; newtopinx--)
+	//{
+	//	sum += Histogram[newtopinx];
+	//	if (sum > thOnePct)
+	//	{
+	//		break;
+	//	}
+
+	//}
+	//for (int j = 0; j < pImage->Height(); j++)
+	//{
+	//	for (int i = 0; i < pImage->Width(); i++)
+	//	{
+	//		*(Ipp8u*)pImage->Point(i, j) = min(255, *(Ipp8u*)pImage->Point(i, j)+(255- newtopinx));
+	//	}
+	//}
+
+	
 
 
-pImage->SaveImage(_T("C:\\Temp\\pImage.bmp"));
 }
