@@ -211,6 +211,7 @@
     <ClInclude Include="PropertiesWnd.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="Segmenter.h" />
+    <ClInclude Include="SelectOptions.h" />
     <ClInclude Include="SJI.h" />
     <ClInclude Include="SJIDoc.h" />
     <ClInclude Include="SJIView.h" />
@@ -230,6 +231,7 @@
     <ClCompile Include="OutputWnd.cpp" />
     <ClCompile Include="PropertiesWnd.cpp" />
     <ClCompile Include="Segmenter.cpp" />
+    <ClCompile Include="SelectOptions.cpp" />
     <ClCompile Include="SJI.cpp" />
     <ClCompile Include="SJIDoc.cpp" />
     <ClCompile Include="SJIView.cpp" />

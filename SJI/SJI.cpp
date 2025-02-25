@@ -27,6 +27,7 @@
 #include "Segmenter.h"
 #include "DageIpp.h"
 #include "ippiImageDC.h"
+#include "SelectOptions.h"
 
 using namespace cv;
 using namespace std;
@@ -511,11 +512,63 @@ void CSJIApp::OnTestfunctionsAdaptivethreashold()
 void CSJIApp::OnInferencingRuninference()
 {
 
-	int BumpSizeInPixels = 14;
+	
 	if (OpenPages.GetCount() >= 1)
 	{
+
 		CString SaveResultsDir = _T("C:\\Results");
+
 		std::string modelPath = "C:\\Models\\DeepCNNmodel.onnx";  // Change this to your ONNX model path
+		int BumpSizeInPixels = 14;
+		enum FindBlobMethods SegMethod = SimpleBumpCV;
+		enum BridgeCandidateSelectionMethods CandMethod = SuspectsOnly;
+
+		if ((GetKeyState(VK_SHIFT)) & 0x8000)
+		{
+			CSelectOptions dlg;
+			if (dlg.DoModal() == IDOK)
+			{
+	//			BumpSizeInPixels = dlg.m_BumpSize;
+				switch (dlg.m_BumpSeg)
+				{
+				case 0:
+					SegMethod = EdgeBased;
+					break;
+				case 1: 
+					SegMethod = ImageRegistration;
+					break;
+				case 2: 
+					SegMethod = SimpleBumpCV;
+					break;
+				}
+
+				switch (dlg.m_CandSel)
+				{
+				case 0:
+					CandMethod = SuspectsOnly;
+					break;
+				case 1:
+		//			CandMethod = LookForNeighbours;
+					break;
+				case 2:
+		//			CandMethod = AdaptiveThreshold;
+					break;
+				}
+
+				switch (dlg.m_NNMod)
+				{
+				case 0:
+					modelPath = "C:\\Models\\DeepCNNmodel.onnx";
+					break;
+				case 1:
+					modelPath = "C:\\Models\\CustomResNet.onnx";
+					break;
+				case 2:
+					modelPath = "C:\\Models\\ResNetReg.onnx";
+					break;
+				}
+			}
+		}
 
 		CString strDir=CreateNewResultsDir(SaveResultsDir);
 
@@ -526,7 +579,7 @@ void CSJIApp::OnInferencingRuninference()
 			CSJIDoc* pDoc1 = OpenPages.GetDocAt(i);
 			CIppiImage* pImage1 = pDoc1->m_ImagePtr;
 
-			CSegmenter Segmenter(pImage1, SimpleBumpCV, SuspectsOnly, BumpSizeInPixels);
+			CSegmenter Segmenter(pImage1, SegMethod, CandMethod, BumpSizeInPixels);
 			std::vector<CCandidateBridge> candidateList = Segmenter.GetBridgeCandidates();
 			
 			
@@ -725,11 +778,60 @@ void CSJIApp::OnInferencingRuninferenceonfolder()
 			CString SaveResultsDir = _T("C:\\Results");
 			CString strDir = CreateNewResultsDir(SaveResultsDir);
 			std::string modelPath = "C:\\Models\\DeepCNNmodel.onnx";  // Change this to your ONNX model path
+			int BumpSizeInPixels = 14;
+			enum FindBlobMethods SegMethod = SimpleBumpCV;
+			enum BridgeCandidateSelectionMethods CandMethod = SuspectsOnly;
+
+			if ((GetKeyState(VK_SHIFT)) & 0x8000)
+			{
+				CSelectOptions dlg;
+				if (dlg.DoModal() == IDOK)
+				{
+					//			BumpSizeInPixels = dlg.m_BumpSize;
+					switch (dlg.m_BumpSeg)
+					{
+					case 0:
+						SegMethod = EdgeBased;
+						break;
+					case 1:
+						SegMethod = ImageRegistration;
+						break;
+					case 2:
+						SegMethod = SimpleBumpCV;
+						break;
+					}
+
+					switch (dlg.m_CandSel)
+					{
+					case 0:
+						CandMethod = SuspectsOnly;
+						break;
+					case 1:
+						//			CandMethod = LookForNeighbours;
+						break;
+					case 2:
+						//			CandMethod = AdaptiveThreshold;
+						break;
+					}
+
+					switch (dlg.m_NNMod)
+					{
+					case 0:
+						modelPath = "C:\\Models\\DeepCNNmodel.onnx";
+						break;
+					case 1:
+						modelPath = "C:\\Models\\CustomResNet.onnx";
+						break;
+					case 2:
+						modelPath = "C:\\Models\\ResNetReg.onnx";
+						break;
+					}
+				}
+			}
+
 
 			std::vector<CBridgeResult> bridgeResults;
 
-
-			int BumpSizeInPixels = 14;
 			CSJIDoc* pDoc1 = OpenPages.GetDocAt(0);
 			CIppiImage* pImage0 = pDoc1->m_ImagePtr;
 			for (int i = 0; i < m_AllProjNames.GetCount(); i++)
@@ -741,7 +843,7 @@ void CSJIApp::OnInferencingRuninferenceonfolder()
 				pImage1->LoadImage(PathName);
 				
 
-				CSegmenter Segmenter(pImage1, SimpleBumpCV, SuspectsOnly, BumpSizeInPixels);
+				CSegmenter Segmenter(pImage1, SegMethod, CandMethod, BumpSizeInPixels);
 				std::vector<CCandidateBridge> candidateList = Segmenter.GetBridgeCandidates();
 
 

@@ -612,6 +612,46 @@ END
 LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_UK
 #pragma code_page(1252)
 
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_OPTIONS_DIALOG DIALOGEX 0, 0, 445, 253
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Select Options"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,329,232,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,388,232,50,14
+    COMBOBOX        IDC_SEGMENT_COMBO,25,35,148,30,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Bump Segmentation",IDC_STATIC,178,38,64,8
+    COMBOBOX        IDC_CANDIDATE_SELECTOR,25,65,148,30,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Candidate Selector",IDC_STATIC,178,68,62,8
+    COMBOBOX        IDC_NNMODEL_COMBO,25,97,148,30,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "NN Model",IDC_STATIC,178,100,31,8
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO
+BEGIN
+    IDD_OPTIONS_DIALOG, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 438
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 246
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+
 #ifdef APSTUDIO_INVOKED
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -652,6 +692,43 @@ BEGIN
 END
 
 #endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// AFX_DIALOG_LAYOUT
+//
+
+IDD_OPTIONS_DIALOG AFX_DIALOG_LAYOUT
+BEGIN
+    0
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog Info
+//
+
+IDD_OPTIONS_DIALOG DLGINIT
+BEGIN
+    IDC_SEGMENT_COMBO, 0x403, 10, 0
+0x6445, 0x6567, 0x6142, 0x6573, 0x0064, 
+    IDC_SEGMENT_COMBO, 0x403, 18, 0
+0x6d49, 0x6761, 0x5265, 0x6765, 0x7369, 0x7274, 0x7461, 0x6f69, 0x006e, 
+
+    IDC_SEGMENT_COMBO, 0x403, 13, 0
+0x6953, 0x706d, 0x656c, 0x7542, 0x706d, 0x5643, "\000" 
+    IDC_CANDIDATE_SELECTOR, 0x403, 13, 0
+0x7553, 0x7073, 0x6365, 0x7374, 0x6e4f, 0x796c, "\000" 
+    IDC_NNMODEL_COMBO, 0x403, 5, 0
+0x4344, 0x4e4e, "\000" 
+    IDC_NNMODEL_COMBO, 0x403, 13, 0
+0x7543, 0x7473, 0x6d6f, 0x6552, 0x4e73, 0x5445, "\000" 
+    IDC_NNMODEL_COMBO, 0x403, 10, 0
+0x6552, 0x4e73, 0x5445, 0x6552, 0x0067, 
+    0
+END
 
 #endif    // English (United Kingdom) resources
 /////////////////////////////////////////////////////////////////////////////

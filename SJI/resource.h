@@ -84,6 +84,11 @@
 #define IDS_FIND_TAB                    302
 #define IDS_EXPLORER                    305
 #define IDS_EDIT_MENU                   306
+#define IDD_OPTIONS_DIALOG              310
+#define IDC_SEGMENT_COMBO               1000
+#define IDC_COMBO2                      1001
+#define IDC_CANDIDATE_SELECTOR          1001
+#define IDC_NNMODEL_COMBO               1002
 #define ID_SEGMENTATION_EDGEBASEDSEGMENT 32771
 #define ID_SEGMENTATION_IMAGEREGISTRATION 32772
 #define ID_SEGMENTATION_CUDAKERNELMETHOD1 32773
@@ -97,9 +102,9 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        310
+#define _APS_NEXT_RESOURCE_VALUE        313
 #define _APS_NEXT_COMMAND_VALUE         32779
-#define _APS_NEXT_CONTROL_VALUE         1000
+#define _APS_NEXT_CONTROL_VALUE         1001
 #define _APS_NEXT_SYMED_VALUE           310
 #endif
 #endif
