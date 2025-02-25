@@ -273,6 +273,7 @@ BEGIN
     BEGIN
         MENUITEM "RunInference",                ID_INFERENCING_RUNINFERENCE
         MENUITEM "Test Segments",               ID_INFERENCING_TESTSEGMENTS
+        MENUITEM "RunInferenceOnFolder",        ID_INFERENCING_RUNINFERENCEONFOLDER
     END
 END
 

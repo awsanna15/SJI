@@ -266,6 +266,7 @@ void CSegmenter::SimpleBumpCVBumpLocator()
 	vector<KeyPoint> keypoints;
 	Ptr<SimpleBlobDetector> detector = SimpleBlobDetector::create(params);
 	detector->detect(gray, keypoints);
+	int exclusionZone = 5 * m_BumpSizeInPixels;
 	for (int i = 0; i < keypoints.size(); i++)
 	{
 		cv::Point pt = keypoints[i].pt;
@@ -279,7 +280,10 @@ void CSegmenter::SimpleBumpCVBumpLocator()
 		ob.width = keypoints[i].size;
 		ob.height = keypoints[i].size;
 		ob.objID = m_BumpLocations.size();
-		m_BumpLocations.push_back(ob);
+		if (pt.x > exclusionZone && pt.x< pImage1->Width() - exclusionZone && pt.y>exclusionZone && pt.y < pImage1->Height() - exclusionZone)
+		{
+			m_BumpLocations.push_back(ob);
+		}
 	}
 	//******************************
 }

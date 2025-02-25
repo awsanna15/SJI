@@ -51,6 +51,7 @@ BEGIN_MESSAGE_MAP(CSJIApp, CWinAppEx)
 	ON_COMMAND(ID_TESTFUNCTIONS_ADAPTIVETHREASHOLD, &CSJIApp::OnTestfunctionsAdaptivethreashold)
 	ON_COMMAND(ID_INFERENCING_RUNINFERENCE, &CSJIApp::OnInferencingRuninference)
 	ON_COMMAND(ID_INFERENCING_TESTSEGMENTS, &CSJIApp::OnInferencingTestsegments)
+	ON_COMMAND(ID_INFERENCING_RUNINFERENCEONFOLDER, &CSJIApp::OnInferencingRuninferenceonfolder)
 END_MESSAGE_MAP()
 
 
@@ -717,5 +718,199 @@ void CSJIApp::OnInferencingTestsegments()
 			pDoc1->m_RectCol.Add(classId+1);
 			PresentResult(pDoc1);
 		}
+	}
+}
+
+
+void CSJIApp::OnInferencingRuninferenceonfolder()
+{
+	if (OpenPages.GetCount() >= 1)
+	{
+		CArray<CString, CString>m_AllProjNames;
+
+		CSJIDoc* pDoc1 = OpenPages.GetDocAt(0);
+		CString PathName = (CString)pDoc1->GetPathName();
+		CString PathNameExLess = _T("");
+		CString PathEx = _T("");
+		int dotPos = -1, tmpPos = -1;
+		do
+		{
+			tmpPos++;
+			tmpPos = PathName.Find(_T("."), tmpPos);
+			if (tmpPos != -1)
+			{
+				dotPos = tmpPos;
+			}
+		} while (tmpPos != -1);
+		if (dotPos != -1 && PathName.GetLength() - dotPos > 1)
+		{
+			PathNameExLess = PathName.Left(dotPos);
+			PathEx = PathName.Right(PathName.GetLength() - dotPos);
+			tmpPos = PathName.ReverseFind('\\');
+			CString strLoadImageDir = (PathName.Left(tmpPos));
+
+			CArray<int, int>m_AllLabels;
+
+			WIN32_FIND_DATA FindFileData;
+			HANDLE hFind = INVALID_HANDLE_VALUE;
+
+			WIN32_FIND_DATA FindFileData2;
+			HANDLE hFind2 = INVALID_HANDLE_VALUE;
+
+			std::vector<CString> dirs;
+			dirs.push_back(strLoadImageDir);
+			GetSubdirs(dirs, strLoadImageDir);
+			//			dirs.push_back(strLoadImageDir);
+			for (int i = 0; i < dirs.size(); i++)
+			{
+				CString pth = dirs.at(i);
+				CString FolderPath(pth);
+				CString Path;
+				if (FolderPath.GetLength() != 0)
+				{
+					Path.Format(_T("%s"), FolderPath);
+
+					CString PartialPath = Path;
+					Path.Append(_T("\\*") + PathEx);
+					const char* pBuffer = (const char*)Path.GetBuffer();
+
+					hFind = FindFirstFile((LPCWSTR)pBuffer, &FindFileData);
+					Path.ReleaseBuffer();
+
+					if (hFind == INVALID_HANDLE_VALUE)
+					{
+						//		return;
+					}
+					else
+					{
+						CString FullPath = PartialPath + _T("\\") + FindFileData.cFileName;
+						m_AllProjNames.Add(FullPath);
+						m_AllLabels.Add(i);
+						// List all the other files in the directory.
+						while (FindNextFile(hFind, &FindFileData) != 0)
+						{
+							FullPath = PartialPath + _T("\\") + FindFileData.cFileName;
+							m_AllProjNames.Add(FullPath);
+							m_AllLabels.Add(i);
+						}
+						FindClose(hFind);
+					}
+				}
+			}
+			dirs.clear();
+
+
+
+			//********************************************************************************************************************
+			CString SaveResultsDir = _T("C:\\Results");
+			CString strDir = CreateNewResultsDir(SaveResultsDir);
+
+			std::vector<CBridgeResult> bridgeResults;
+
+
+			int BumpSizeInPixels = 14;
+			CSJIDoc* pDoc1 = OpenPages.GetDocAt(0);
+			CIppiImage* pImage0 = pDoc1->m_ImagePtr;
+			for (int i = 0; i < m_AllProjNames.GetCount(); i++)
+			{
+				
+				CString PathName = m_AllProjNames.GetAt(i);
+				CIppiImage Image16s(pImage0->Width(), pImage0->Height(),1,pp16s);
+				CIppiImage* pImage1 = &Image16s;
+				pImage1->LoadImage(PathName);
+				
+
+				CSegmenter Segmenter(pImage1, SimpleBumpCV, SuspectsOnly, BumpSizeInPixels);
+				std::vector<CCandidateBridge> candidateList = Segmenter.GetBridgeCandidates();
+
+
+
+
+				// do inference on each end every candidate ************************************************************
+				//Use onnx model to classify images
+					// Load the ONNX model
+				std::string modelPath = "C:\\Models\\DeepCNNmodel.onnx";  // Change this to your ONNX model path
+				cv::dnn::Net net = cv::dnn::readNetFromONNX(modelPath);
+				if (net.empty())
+				{
+					std::cerr << "Error: Could not load the ONNX model!" << std::endl;
+					return;
+				}
+
+				for (int c = 0; c < candidateList.size(); c++)
+				{
+					CIppiImage* pSegment = candidateList[c].pBridgeImg;   // should be 8bit 224x224 image
+
+					cv::Mat finalCropped = cv::Mat(pSegment->Height(), pSegment->Width(), CV_8UC1, pSegment->DataPtr(), pSegment->Step());
+					finalCropped.convertTo(finalCropped, CV_8U);
+
+					int width = finalCropped.cols;
+					int height = finalCropped.rows;
+
+					int segmentsize = 56;
+
+					int new_width, new_height;
+					if (width > height) {
+						new_width = segmentsize;
+						new_height = segmentsize;
+					}
+					else {
+						new_height = segmentsize;
+						new_width = segmentsize;
+					}
+
+					// Resize the image while keeping the aspect ratio
+					cv::Mat resizedImg;
+					cv::resize(finalCropped, resizedImg, cv::Size(new_width, new_height), 0, 0, cv::INTER_LINEAR);
+
+
+					cv::Mat finalImg(segmentsize, segmentsize, resizedImg.type(), cv::Scalar(255, 255, 255));
+
+					// Compute the position to center the resized image
+					int x_offset = (segmentsize - new_width) / 2;
+					int y_offset = (segmentsize - new_height) / 2;
+
+					// Place resized image in the center of the white background
+					resizedImg.copyTo(finalImg(cv::Rect(x_offset, y_offset, new_width, new_height)));
+
+					cv::Mat blob;
+					blob = cv::dnn::blobFromImage(finalImg, 1.0 / 255.0, cv::Size(segmentsize, segmentsize), cv::Scalar(0), false, false);
+
+					// Set the blob as the input to the network
+					net.setInput(blob);
+
+
+					// Run forward pass to classify the image
+					cv::Mat output = net.forward();
+
+					// Interpret output: Find the index of the highest confidence score
+					cv::Point classIdPoint;
+					double confidence;
+					cv::minMaxLoc(output, nullptr, &confidence, nullptr, &classIdPoint);
+					int classId = classIdPoint.x;
+
+					//store inference results in result array
+					float fbridge = classId == 1 ? (float)confidence : 1.0f - (float)confidence;
+					float fnotbridge = 1.0f - fbridge;
+					bridgeResults.push_back(CBridgeResult(candidateList[c], fbridge, fnotbridge));
+				}
+
+				// store image segments to the dedicated result folders (bridge, notbridge) ****************************************
+				SaveResults(strDir, bridgeResults, pImage1);
+
+				// ***** present the results ************************
+
+
+
+				
+
+				bridgeResults.clear();
+
+			}
+
+			//********************************************************************************************************************
+		}
+
+
 	}
 }

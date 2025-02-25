@@ -212,7 +212,7 @@ void CreateImageMask(CIppiImage& Image8u, int BumpSizeInPixels)
 	cv::adaptiveThreshold(blurred, thresh, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY_INV, (BumpSizeInPixels) * 2 + 1, 2);
 
 	cv::Mat morph;
-	cv::morphologyEx(thresh, morph, cv::MORPH_DILATE, cv::Mat::ones((BumpSizeInPixels/3), (BumpSizeInPixels/3), CV_8UC1));
+	cv::morphologyEx(thresh, morph, cv::MORPH_DILATE, cv::Mat::ones((BumpSizeInPixels/3)+1, (BumpSizeInPixels/3)+1, CV_8UC1));
 
 
 	ippiCopy_8u_C1R((const Ipp8u*)morph.data, (int)morph.step, (Ipp8u*)Image8u.DataPtr(), Image8u.Step(), Image8u.Size());
@@ -230,4 +230,36 @@ bool dirExists(CStringA strDir)
 		return true;   // this is a directory!
 
 	return false;    // this is not a directory!
+}
+
+
+void GetSubdirs(std::vector<CString>& output, const CString& path)
+{
+	WIN32_FIND_DATA FindFileData;
+	HANDLE hFind = INVALID_HANDLE_VALUE;
+
+	CString Path = path + _T("\\*");
+
+	const char* pBuffer = (const char*)Path.GetBuffer();
+
+	hFind = FindFirstFile((LPCWSTR)pBuffer, &FindFileData);
+	Path.ReleaseBuffer();
+
+
+	if (hFind != INVALID_HANDLE_VALUE)
+	{
+		do
+		{
+			if ((FindFileData.dwFileAttributes | FILE_ATTRIBUTE_DIRECTORY) == FILE_ATTRIBUTE_DIRECTORY
+				&& (FindFileData.cFileName[0] != '.'))
+			{
+				CString FullPath = path + _T("\\") + FindFileData.cFileName;
+				GetSubdirs(output, FullPath);
+				output.push_back(FullPath);
+			}
+		} while (FindNextFile(hFind, &FindFileData) != 0);
+		FindClose(hFind);
+	}
+
+
 }

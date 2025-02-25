@@ -8,3 +8,4 @@ void  FindTemplate(CIppiImage* pImage1, CIppiImage* pImage2, CIppiImage* pResult
 void CreateBumpTemplate(CIppiImage& tmpBumpTemplate, const int BumpSizeInPixels);
 void CreateImageMask(CIppiImage& Image8u, int BumpSizeInPixels);
 bool dirExists(CStringA strDir);
+void GetSubdirs(std::vector<CString>& output, const CString& path);
