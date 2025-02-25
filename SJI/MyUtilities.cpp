@@ -263,3 +263,83 @@ void GetSubdirs(std::vector<CString>& output, const CString& path)
 
 
 }
+
+
+bool RunInference(std::string& modelPath, std::vector<CCandidateBridge>& candidateList, std::vector<CBridgeResult>& bridgeResults)
+{
+	bool retFlag = true;
+	// do inference on each end every candidate ************************************************************
+	//Use onnx model to classify images
+	// Load the ONNX model
+
+	cv::dnn::Net net = cv::dnn::readNetFromONNX(modelPath);
+	if (net.empty())
+	{
+		std::cerr << "Error: Could not load the ONNX model!" << std::endl;
+		retFlag = false;
+
+	}
+	else
+	{
+		for (int c = 0; c < candidateList.size(); c++)
+		{
+			CIppiImage* pSegment = candidateList[c].pBridgeImg;   // should be 8bit 224x224 image
+
+			cv::Mat finalCropped = cv::Mat(pSegment->Height(), pSegment->Width(), CV_8UC1, pSegment->DataPtr(), pSegment->Step());
+			finalCropped.convertTo(finalCropped, CV_8U);
+
+			int width = finalCropped.cols;
+			int height = finalCropped.rows;
+
+			int segmentsize = 56;
+
+			int new_width, new_height;
+			if (width > height) {
+				new_width = segmentsize;
+				new_height = segmentsize;
+			}
+			else {
+				new_height = segmentsize;
+				new_width = segmentsize;
+			}
+
+			// Resize the image while keeping the aspect ratio
+			cv::Mat resizedImg;
+			cv::resize(finalCropped, resizedImg, cv::Size(new_width, new_height), 0, 0, cv::INTER_LINEAR);
+
+
+			cv::Mat finalImg(segmentsize, segmentsize, resizedImg.type(), cv::Scalar(255, 255, 255));
+
+			// Compute the position to center the resized image
+			int x_offset = (segmentsize - new_width) / 2;
+			int y_offset = (segmentsize - new_height) / 2;
+
+			// Place resized image in the center of the white background
+			resizedImg.copyTo(finalImg(cv::Rect(x_offset, y_offset, new_width, new_height)));
+
+			cv::Mat blob;
+			blob = cv::dnn::blobFromImage(finalImg, 1.0 / 255.0, cv::Size(segmentsize, segmentsize), cv::Scalar(0), false, false);
+
+			// Set the blob as the input to the network
+			net.setInput(blob);
+
+
+			// Run forward pass to classify the image
+			cv::Mat output = net.forward();
+
+			// Interpret output: Find the index of the highest confidence score
+			cv::Point classIdPoint;
+			double confidence;
+			cv::minMaxLoc(output, nullptr, &confidence, nullptr, &classIdPoint);
+			int classId = classIdPoint.x;
+
+			//store inference results in result array
+			float fbridge = classId == 1 ? (float)confidence : 1.0f - (float)confidence;
+			float fnotbridge = 1.0f - fbridge;
+			bridgeResults.push_back(CBridgeResult(candidateList[c], fbridge, fnotbridge));
+		}
+	}
+
+	return retFlag;
+}
+

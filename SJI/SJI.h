@@ -54,6 +54,7 @@ public:
 	afx_msg void OnTestfunctionsAdaptivethreashold();
 
 	afx_msg void OnInferencingRuninference();
+	
 	afx_msg void OnInferencingTestsegments();
 	afx_msg void OnInferencingRuninferenceonfolder();
 };
