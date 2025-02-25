@@ -53,6 +53,7 @@ BEGIN_MESSAGE_MAP(CSJIApp, CWinAppEx)
 	ON_COMMAND(ID_INFERENCING_RUNINFERENCE, &CSJIApp::OnInferencingRuninference)
 	ON_COMMAND(ID_INFERENCING_TESTSEGMENTS, &CSJIApp::OnInferencingTestsegments)
 	ON_COMMAND(ID_INFERENCING_RUNINFERENCEONFOLDER, &CSJIApp::OnInferencingRuninferenceonfolder)
+	ON_COMMAND(ID_AUGMENTATION_CREATE1000, &CSJIApp::OnAugmentationCreate1000)
 END_MESSAGE_MAP()
 
 
@@ -706,71 +707,7 @@ void CSJIApp::OnInferencingRuninferenceonfolder()
 
 		CSJIDoc* pDoc1 = OpenPages.GetDocAt(0);
 		CString PathName = (CString)pDoc1->GetPathName();
-		CString PathNameExLess = _T("");
-		CString PathEx = _T("");
-		int dotPos = -1, tmpPos = -1;
-		do
-		{
-			tmpPos++;
-			tmpPos = PathName.Find(_T("."), tmpPos);
-			if (tmpPos != -1)
-			{
-				dotPos = tmpPos;
-			}
-		} while (tmpPos != -1);
-		if (dotPos != -1 && PathName.GetLength() - dotPos > 1)
-		{
-			PathNameExLess = PathName.Left(dotPos);
-			PathEx = PathName.Right(PathName.GetLength() - dotPos);
-			tmpPos = PathName.ReverseFind('\\');
-			CString strLoadImageDir = (PathName.Left(tmpPos));
-
-			CArray<int, int>m_AllLabels;
-
-			WIN32_FIND_DATA FindFileData;
-			HANDLE hFind = INVALID_HANDLE_VALUE;
-
-			std::vector<CString> dirs;
-			dirs.push_back(strLoadImageDir);
-			GetSubdirs(dirs, strLoadImageDir);
-			//			dirs.push_back(strLoadImageDir);
-			for (int i = 0; i < dirs.size(); i++)
-			{
-				CString pth = dirs.at(i);
-				CString FolderPath(pth);
-				CString Path;
-				if (FolderPath.GetLength() != 0)
-				{
-					Path.Format(_T("%s"), FolderPath);
-
-					CString PartialPath = Path;
-					Path.Append(_T("\\*") + PathEx);
-					const char* pBuffer = (const char*)Path.GetBuffer();
-
-					hFind = FindFirstFile((LPCWSTR)pBuffer, &FindFileData);
-					Path.ReleaseBuffer();
-
-					if (hFind == INVALID_HANDLE_VALUE)
-					{
-						//		return;
-					}
-					else
-					{
-						CString FullPath = PartialPath + _T("\\") + FindFileData.cFileName;
-						m_AllProjNames.Add(FullPath);
-						m_AllLabels.Add(i);
-						// List all the other files in the directory.
-						while (FindNextFile(hFind, &FindFileData) != 0)
-						{
-							FullPath = PartialPath + _T("\\") + FindFileData.cFileName;
-							m_AllProjNames.Add(FullPath);
-							m_AllLabels.Add(i);
-						}
-						FindClose(hFind);
-					}
-				}
-			}
-			dirs.clear();
+		FindProjectionsInDir(PathName, m_AllProjNames);
 
 
 
@@ -832,7 +769,7 @@ void CSJIApp::OnInferencingRuninferenceonfolder()
 
 			std::vector<CBridgeResult> bridgeResults;
 
-			CSJIDoc* pDoc1 = OpenPages.GetDocAt(0);
+			pDoc1 = OpenPages.GetDocAt(0);
 			CIppiImage* pImage0 = pDoc1->m_ImagePtr;
 			for (int i = 0; i < m_AllProjNames.GetCount(); i++)
 			{
@@ -860,8 +797,81 @@ void CSJIApp::OnInferencingRuninferenceonfolder()
 			}
 
 			//********************************************************************************************************************
+		
+
+
+	}
+}
+
+
+void CSJIApp::OnAugmentationCreate1000()
+{
+
+	if (OpenPages.GetCount() == 2)
+	{
+		CSJIDoc* pDoc1 = OpenPages.GetDocAt(0);
+		CString PathName = (CString)pDoc1->GetPathName();
+		int width = pDoc1->m_ImagePtr->Width();
+		int height = pDoc1->m_ImagePtr->Height();
+
+		CSJIDoc* pDoc2 = OpenPages.GetDocAt(1);
+		CString PathName2 = (CString)pDoc2->GetPathName();
+
+		CString PathNameBridge;
+		CString  PathNameNonBridge;
+		int tmpPos = PathName.Find(_T("Non-Bridge"), 0);
+		if (tmpPos != -1)
+		{
+			PathNameNonBridge = PathName;
+			PathNameBridge = PathName2;
+		}
+		else
+		{
+			PathNameNonBridge = PathName2;
+			PathNameBridge = PathName;
+
 		}
 
+		CArray<CString, CString> bridgeArray;
+		CArray<CString, CString> nonBridgeArray;
 
+		FindProjectionsInDir(PathNameBridge, bridgeArray);
+		FindProjectionsInDir(PathNameNonBridge, nonBridgeArray);
+
+		CString DestinationPath = _T("C:\\synthBridge");
+		CreateDirectory(DestinationPath,0);
+		CString strDir = CreateNewResultsDir(DestinationPath);
+
+		CIppiImage segment01(width,height,1,pp8u);
+		CIppiImage segment02(width, height, 1, pp8u);
+		CIppiImage segment03(width, height, 1, pp8u);
+		CIppiImage nbsegment(width, height, 1, pp8u);
+
+		CIppiImage resultImage(width, height, 1, pp8u);
+
+		int index;
+		for (int i = 0;i < 1000;i++) 
+		{
+			index=int(((double)rand()/RAND_MAX)* bridgeArray.GetCount());
+			segment01.LoadImage(bridgeArray.GetAt(index));
+			//ApplyOperator(&segment01);
+
+			index = int(((double)rand() / RAND_MAX) * bridgeArray.GetCount());
+			segment02.LoadImage(bridgeArray.GetAt(index));
+			//ApplyOperator(&segment02);
+
+			index = int(((double)rand() / RAND_MAX) * bridgeArray.GetCount());
+			segment03.LoadImage(bridgeArray.GetAt(index));
+			//ApplyOperator(&segment03);
+
+			index = int(((double)rand() / RAND_MAX) * nonBridgeArray.GetCount());
+			nbsegment.LoadImage(nonBridgeArray.GetAt(index));
+
+			SynthBridge(segment01, segment02, segment03, nbsegment,resultImage);
+
+			CString str;
+			str.Format(_T("%s\\sb_%04d.bmp"), strDir, i + 1);
+			resultImage.SaveImage(str);
+		}
 	}
 }

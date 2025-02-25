@@ -343,3 +343,82 @@ bool RunInference(std::string& modelPath, std::vector<CCandidateBridge>& candida
 	return retFlag;
 }
 
+void FindProjectionsInDir(CString PathName, CArray<CString, CString> &m_AllProjNames)
+{
+	CString PathNameExLess = _T("");
+	CString PathEx = _T("");
+	int dotPos = -1, tmpPos = -1;
+	do
+	{
+		tmpPos++;
+		tmpPos = PathName.Find(_T("."), tmpPos);
+		if (tmpPos != -1)
+		{
+			dotPos = tmpPos;
+		}
+	} while (tmpPos != -1);
+	if (dotPos != -1 && PathName.GetLength() - dotPos > 1)
+	{
+		PathNameExLess = PathName.Left(dotPos);
+		PathEx = PathName.Right(PathName.GetLength() - dotPos);
+		tmpPos = PathName.ReverseFind('\\');
+		CString strLoadImageDir = (PathName.Left(tmpPos));
+
+		CArray<int, int>m_AllLabels;
+
+		WIN32_FIND_DATA FindFileData;
+		HANDLE hFind = INVALID_HANDLE_VALUE;
+
+		std::vector<CString> dirs;
+		dirs.push_back(strLoadImageDir);
+		GetSubdirs(dirs, strLoadImageDir);
+		//			dirs.push_back(strLoadImageDir);
+		for (int i = 0; i < dirs.size(); i++)
+		{
+			CString pth = dirs.at(i);
+			CString FolderPath(pth);
+			CString Path;
+			if (FolderPath.GetLength() != 0)
+			{
+				Path.Format(_T("%s"), FolderPath);
+
+				CString PartialPath = Path;
+				Path.Append(_T("\\*") + PathEx);
+				const char* pBuffer = (const char*)Path.GetBuffer();
+
+				hFind = FindFirstFile((LPCWSTR)pBuffer, &FindFileData);
+				Path.ReleaseBuffer();
+
+				if (hFind == INVALID_HANDLE_VALUE)
+				{
+					//		return;
+				}
+				else
+				{
+					CString FullPath = PartialPath + _T("\\") + FindFileData.cFileName;
+					m_AllProjNames.Add(FullPath);
+					m_AllLabels.Add(i);
+					// List all the other files in the directory.
+					while (FindNextFile(hFind, &FindFileData) != 0)
+					{
+						FullPath = PartialPath + _T("\\") + FindFileData.cFileName;
+						m_AllProjNames.Add(FullPath);
+						m_AllLabels.Add(i);
+					}
+					FindClose(hFind);
+				}
+			}
+		}
+		dirs.clear();
+	}
+}
+
+void SynthBridge(CIppiImage segment01, CIppiImage segment02, CIppiImage segment03, CIppiImage nbsegment, CIppiImage& resultImage)
+{
+	for (int i = 0;i < resultImage.Width();i++) {
+		for (int j = 0;j < resultImage.Height();j++) {
+			*(Ipp8u*)resultImage.Point(i, j) = (*(Ipp8u*)segment01.Point(i, j) + *(Ipp8u*)segment02.Point(i, j) + *(Ipp8u*)segment03.Point(i, j) + *(Ipp8u*)nbsegment.Point(i, j)) / 4;
+
+		}
+	}
+}

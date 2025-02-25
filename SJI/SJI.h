@@ -57,6 +57,7 @@ public:
 	
 	afx_msg void OnInferencingTestsegments();
 	afx_msg void OnInferencingRuninferenceonfolder();
+	afx_msg void OnAugmentationCreate1000();
 };
 
 extern CSJIApp theApp;

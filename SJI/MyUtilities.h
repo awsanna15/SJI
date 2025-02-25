@@ -12,3 +12,5 @@ void CreateImageMask(CIppiImage& Image8u, int BumpSizeInPixels);
 bool dirExists(CStringA strDir);
 void GetSubdirs(std::vector<CString>& output, const CString& path);
 bool RunInference(std::string& modelPath, std::vector<CCandidateBridge>& candidateList, std::vector<CBridgeResult>& bridgeResults);
+void FindProjectionsInDir(CString PathName, CArray<CString, CString>& m_AllProjNames);
+void SynthBridge(CIppiImage segment01, CIppiImage segment02, CIppiImage segment03, CIppiImage nbsegment, CIppiImage& resultImage);

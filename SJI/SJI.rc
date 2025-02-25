@@ -275,6 +275,10 @@ BEGIN
         MENUITEM "Test Segments",               ID_INFERENCING_TESTSEGMENTS
         MENUITEM "RunInferenceOnFolder",        ID_INFERENCING_RUNINFERENCEONFOLDER
     END
+    POPUP "Augmentation"
+    BEGIN
+        MENUITEM "Create1000",                  ID_AUGMENTATION_CREATE1000
+    END
 END
 
 IDR_POPUP_EDIT MENU
